@@ -9,6 +9,9 @@ BLU_PROXY=socks5h://127.0.0.1:1080 npm run login     # once
 BLU_PROXY=socks5h://127.0.0.1:1080 npm start
 ```
 
+`data/` is created on first login and holds the session. See `.env.example` for
+the available settings.
+
 Then call it:
 
 ```
