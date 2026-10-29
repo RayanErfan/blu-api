@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Generate one example script per endpoint."""
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(HERE, "methods")
+os.makedirs(OUT, exist_ok=True)
+
+# (slug, title, path, body, note)
+METHODS = [
+    ("status", "Session status", "status", None,
+     "Login state, device id and remaining token life. The token renews itself on\n"
+     "the next call, so `tokenFresh: false` is not an error."),
+    ("profile", "Own profile", "profile", None,
+     "Identity record: username, party id, phone, avatar, birth date."),
+    ("profiles", "Account profiles", "profiles", None,
+     "The personal/legal profiles the account can act as."),
+    ("balance", "Total balance", "balance", None,
+     "Available balance summed over every deposit, in IRR."),
+    ("balances", "Per-account balances", "balances", None,
+     "Every deposit with its IBAN, available and current amounts."),
+    ("cards", "Recent transfer cards", "cards", None,
+     "Cards previously used as transfer destinations."),
+    ("cards_all", "Own cards", "cards/all", None,
+     "The account's own cards, with bank and PAN."),
+    ("cards_processed", "Processed card orders", "cards/processed", None,
+     "Card orders that have been processed. Empty on this account."),
+    ("transactions", "Transaction history", "transactions", None,
+     "Full history, newest first. Each row carries a base64 transaction id."),
+    ("transactions_categories", "Merchant categories", "transactions/categories", None,
+     "Merchant category tree used to classify spending."),
+    ("transactions_hashtags", "Transaction hashtags", "transactions/hashtags", None,
+     "Hashtags applied to transactions. Empty on this account."),
+    ("transfers_recent", "Recent transfer destinations", "transfers/recent", None,
+     "Previously used destination accounts with bank metadata."),
+    ("transfers_scheduled", "Scheduled transfers", "transfers/scheduled", None,
+     "Scheduled transfer contracts. Only the cursor comes back when none exist."),
+    ("charge_recent_phones", "Recent top-up numbers", "charge/recent-phones", None,
+     "Recently topped-up mobile numbers, with operator."),
+    ("internet_recent_phones", "Recent internet packages", "internet/recent-phones", None,
+     "Recently purchased internet packages."),
+    ("bill_favorites", "Saved bills", "bill/favorites", None,
+     "Bills saved as favourites. Empty on this account."),
+    ("banks", "Bank directory", "banks", None,
+     "Every bank with its code and logo, used to build transfer destinations."),
+    ("banners", "Dashboard banners", "banners", None,
+     "Promotional banners with their navigation targets."),
+    ("onboarding", "Onboarding slides", "onboarding", None,
+     "Onboarding slides. Empty on this account."),
+    ("junior", "Junior accounts", "junior", None,
+     "Child accounts. Empty on this account."),
+    ("identities", "Identity traits", "identities", None,
+     "The one JSON route: traits sent to the identity service."),
+    ("cashback_categories", "Cashback categories", "cashback/categories", None,
+     "Cashback categories and their rates."),
+    ("cashback_vendors", "Cashback vendors", "cashback/vendors", None,
+     "Vendors participating in cashback."),
+    ("cheques", "Cheque registry", "cheques", None,
+     "Registered cheques. Only the cursor comes back when none exist."),
+    ("contacts", "Recent contacts", "contacts", None,
+     "Contacts available as transfer destinations."),
+]
+
+TEMPLATE = '''#!/usr/bin/env python3
+"""{title}
+
+GET /{path}
+
+{note}
+
+Recorded response: output/{slug}.json
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import blu
+
+result = blu.get("{path}")
+blu.show("{title}", result)
+'''
+
+for slug, title, path, body, note in METHODS:
+    with open(os.path.join(OUT, slug + ".py"), "w", encoding="utf-8") as f:
+        f.write(TEMPLATE.format(slug=slug, title=title, path=path, note=note))
+
+print(f"wrote {len(METHODS)} scripts")

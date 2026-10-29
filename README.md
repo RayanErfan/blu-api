@@ -17,8 +17,11 @@ Then call it:
 ```
 curl -s localhost:8088/balance
 curl -s -X POST localhost:8088/transfers -H 'content-type: application/json' \
-     -d '{"amount":100000,"to":"6104331086237428"}'
+     -d '{"amount":100000,"to":"6104335551234567"}'
 ```
+
+`example/` has a Python script per endpoint and a recorded response for each,
+with the account details replaced by fake ones. See `example/README.md`.
 
 ---
 
@@ -51,12 +54,12 @@ Recovered from the PWA bundle and verified live:
 
 ### Session persistence
 
-The device id is a random UUID that is written to `data/session.json` and reused
+The device id is a random UUID that is written to `data/sessions.json` and reused
 forever. Once a device has completed an OTP it is **trusted**, and login returns
 the token straight away with no OTP. That is what makes the tool usable:
 
 - the token, its expiry, the device id, the ECDH private key and the credentials
-  live in `data/session.json` (mode `0600`);
+  live in `data/sessions.json` (mode `0600`), one slot per username;
 - `ensure()` hands back a live token, and silently re-logs-in when it has run
   out — no OTP, no user interaction;
 - a 401 on any call triggers one renewal and a retry;
@@ -77,6 +80,7 @@ trusting the device. `npm run logout` wipes it.
 | `src/derive.js` | balance / source-card extraction |
 | `server.js` | HTTP API |
 | `cli.js` | login, OTP, status, raw calls |
+| `example/` | Python examples, one per endpoint, plus captured responses |
 
 ## Endpoints
 
@@ -143,4 +147,7 @@ node cli.js call account/deposit/list/all '{"req":"solutions.saman.bluebank.serv
 - The gateway is rate-sensitive; a burst of unknown routes can return 500s for
   a minute.
 
-Built for personal use against a single account.
+Built for personal use.
+
+`example/` has a Python script per endpoint and a recorded response for each,
+so the shape of every route is readable without running anything.

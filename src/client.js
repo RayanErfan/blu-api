@@ -40,6 +40,24 @@ function deviceIdBinary(id) {
   return Buffer.from(id.replace(/-/g, ''), 'hex');
 }
 
+// A fresh-device login answers with an OTP challenge. The request blob lives in
+// the navigation URI under f5 and is echoed back verbatim as the f2 block of the
+// verify call; the timestamps come from the response's own f2 block.
+function parseOtpRequest(res) {
+  const blk = P.first(res, 2) || Buffer.alloc(0);
+  const uri = P.first(P.first(res, 5) || Buffer.alloc(0), 1);
+  if (!uri) return null;
+  const m = /otp_request=([^&]+)/.exec(uri.toString('utf8'));
+  if (!m) return null;
+  const req = Buffer.from(decodeURIComponent(m[1]), 'base64');
+  return {
+    id: (P.first(req, 1) || Buffer.alloc(0)).toString('utf8'),
+    sessionId: (P.first(blk, 3) || Buffer.alloc(0)).toString('utf8'),
+    ts1: Number(P.first(P.first(blk, 1) || Buffer.alloc(0), 1)),
+    ts2: Number(P.first(P.first(blk, 2) || Buffer.alloc(0), 1)),
+  };
+}
+
 // Depth-first search for a three-part JWT anywhere in a protobuf tree.
 function findJwt(buf, depth = 0) {
   if (!buf || !buf.length || depth > 6) return null;
@@ -64,16 +82,16 @@ function clientInfo() {
 }
 
 // The leading "app" block shared by key-exchange and login.
-function profileBlock() {
+function profileBlock(profileId) {
   return P.msg(10, [
     P.str(1, C.PROFILE),
     P.num(2, 1),
-    P.msg(3, [P.str(1, C.PROFILE_ID)]),
+    P.msg(3, [P.str(1, profileId || C.PROFILE_ID)]),
     P.num(4, C.PROFILE_TYPE),
   ]);
 }
 
-function appBlock(deviceId, withProfile) {
+function appBlock(deviceId, withProfile, profileId) {
   return P.msg(1, [
     P.bytes(1, crypto.randomBytes(16)),
     P.msg(8, [
@@ -82,7 +100,7 @@ function appBlock(deviceId, withProfile) {
       P.msg(999, versionBlock()),
     ]),
     P.msg(9, [P.str(1, C.LOCALE)]),
-    ...(withProfile ? [profileBlock()] : []),
+    ...(withProfile ? [profileBlock(profileId)] : []),
     clientInfo(),
   ]);
 }
@@ -121,6 +139,26 @@ class BluClient {
       return this.s;
     }
     throw new Error('no session: run `node cli.js login`');
+  }
+
+  // The profile block carries the deposit id, which differs per account. Learn
+  // it once from the deposit list and keep it for the rest of the session.
+  async profileId() {
+    if (this.s.profileId) return this.s.profileId;
+    await this.ensure();
+    const res = await this.call(
+      'account/deposit/list/all',
+      'solutions.saman.bluebank.services.AccountListAllRequest',
+      'solutions.saman.bluebank.services.AccountListAllResponse',
+      appBlock(this.s.deviceId, true)
+    );
+    const first = P.first(P.first(res, 3) || Buffer.alloc(0), 1);
+    const id = first && P.first(first, 1);
+    if (id) {
+      this.s.profileId = id.toString('utf8');
+      store.save(this.strip());
+    }
+    return this.s.profileId || C.PROFILE_ID;
   }
 
   // Silent re-login. Serialised so concurrent callers share one round trip.
@@ -249,6 +287,7 @@ class BluClient {
   async login(username, password, { keep = false } = {}) {
     if (!this.s) this.newDevice();
     if (!keep) {
+      if (this.s.username !== username) this.s.profileId = null;
       this.s.username = username;
       this.s.password = password;
     }
@@ -279,13 +318,10 @@ class BluClient {
       this.setToken(maybeToken);
       return { res, token: maybeToken, otp: null };
     }
-    const otp = blk
-      ? {
-          id: maybeToken,
-          ts1: P.first(P.first(blk, 1) || Buffer.alloc(0), 1),
-          ts2: P.first(P.first(blk, 2) || Buffer.alloc(0), 1),
-        }
-      : null;
+    // A fresh device gets an OTP instead. The request itself lives in the
+    // navigation URI under f5, base64 encoded, and is echoed back verbatim as
+    // the f2 block of the verify call.
+    const otp = parseOtpRequest(res);
     s.otp = otp;
     store.save(this.strip());
     return { res, otp };
@@ -294,26 +330,11 @@ class BluClient {
   async otpVerify(code, otpRequest, otp) {
     const s = this.s;
     otp = otp || s.otp;
-    let reqId = otp?.id;
-    let ts1 = otp?.ts1;
-    let ts2 = otp?.ts2;
-    if (!reqId && typeof otpRequest === 'string') {
-      if (otpRequest.includes('-')) reqId = otpRequest;
-      else {
-        const req = Buffer.from(otpRequest, 'base64');
-        reqId = P.first(req, 1).toString('utf8');
-        const t = P.first(req, 2) || Buffer.alloc(0);
-        ts1 = P.first(P.first(t, 1) || Buffer.alloc(0), 1);
-        ts2 = P.first(P.first(t, 2) || Buffer.alloc(0), 1);
-      }
-    }
-    const now = BigInt(Date.now());
-    ts1 = ts1 ?? now;
-    ts2 = ts2 ?? now;
+    if (!otp) throw new Error('no pending otp request');
     const body = Buffer.concat([
       P.msg(1, [
         P.bytes(1, crypto.randomBytes(16)),
-        P.msg(4, [P.msg(1, [P.num(1, ts1)]), P.msg(2, [P.num(1, ts2)]), P.str(3, uuid())]),
+        P.msg(4, [P.msg(1, [P.num(1, otp.ts1)]), P.msg(2, [P.num(1, otp.ts2)]), P.str(3, otp.sessionId || uuid())]),
         P.msg(8, [
           P.num(10, 0),
           P.bytes(998, deviceIdBinary(s.deviceId)),
@@ -322,7 +343,7 @@ class BluClient {
         P.msg(9, [P.str(1, C.LOCALE)]),
         clientInfo(),
       ]),
-      P.msg(2, [P.str(1, reqId), P.msg(2, [P.num(1, ts1)]), P.msg(3, [P.num(1, 119)])]),
+      P.msg(2, [P.str(1, otp.id), P.msg(2, [P.num(1, otp.ts1)]), P.msg(3, [P.num(1, 119)])]),
       P.msg(3, [P.bytes(1, X.aesSeal(s._secret, Buffer.from(code, 'utf8')))]),
     ]);
     const res = await this.raw('user/otp/verify', {
@@ -330,7 +351,6 @@ class BluClient {
       signed: true,
       headers: { 'content-type': `application/x-protobuf;reqMsg="${C.T.otpVerify}"; respMsg="${C.T.otpVerifyR}";` },
     });
-    // The verify response carries the bearer token somewhere in its tree.
     const jwt = findJwt(res);
     if (jwt) this.setToken(jwt);
     s.otp = null;
@@ -350,6 +370,7 @@ class BluClient {
       expiresAt: s.expiresAt,
       username: s.username,
       password: s.password,
+      profileId: s.profileId,
       otp: s.otp,
       createdAt: s.createdAt,
     };

@@ -1,0 +1,18 @@
+{
+  "accounts": [
+    {
+      "depositNumber": "611828001111111101",
+      "iban": "IR000560611828001111111101",
+      "type": "حساب کوتاه‌مدت",
+      "owner": "رضا",
+      "available": {
+        "value": "134021.000000",
+        "currency": "IRR"
+      },
+      "current": {
+        "value": "134021.000000",
+        "currency": "IRR"
+      }
+    }
+  ]
+}

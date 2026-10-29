@@ -1,0 +1,17 @@
+{
+  "flags": [],
+  "traits": [
+    {
+      "trait_key": "user_username",
+      "trait_value": "rezaei"
+    },
+    {
+      "trait_key": "device_platform_os",
+      "trait_value": "WEB"
+    },
+    {
+      "trait_key": "device_platform_version",
+      "trait_value": "17.5"
+    }
+  ]
+}

@@ -15,13 +15,13 @@ class Api {
     this.c = client;
   }
 
-  _app() {
-    return appBlock(this.c.s.deviceId, true);
+  async _app() {
+    return appBlock(this.c.s.deviceId, true, await this.c.profileId());
   }
 
   async _post(path, req, resp, extra) {
     await this.c.ensure();
-    const body = Buffer.concat([this._app(), ...(extra || [])]);
+    const body = Buffer.concat([await this._app(), ...(extra || [])]);
     return this.c.call(path, NS + req, NS + resp, body);
   }
 
@@ -98,11 +98,11 @@ class Api {
   }
 
   transferGet(id) {
-    return this._post('transfer/get', 'TransferGetRequest', 'TransferGetResponse', [P.str(1, id)]);
+    return this._post('transfer/get', 'TransferGetRequest', 'TransferGetResponse', [P.str(2, id)]);
   }
 
   transferCancel(id) {
-    return this._post('transfer/cancel', 'TransferCancelRequest', 'TransferCancelResponse', [P.str(1, id)]);
+    return this._post('transfer/cancel', 'TransferCancelRequest', 'TransferCancelResponse', [P.str(2, id)]);
   }
 
   scheduledTransfers() {
@@ -186,7 +186,7 @@ class Api {
     await this.c.ensure();
     const kp = X.newKeyPair();
     const body = Buffer.concat([
-      this._app(),
+      await this._app(),
       P.bytes(2, deviceIdBinary(this.c.s.deviceId)),
       P.bytes(3, X.exportSpki(kp.publicKey)),
     ]);

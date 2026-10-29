@@ -9,7 +9,7 @@ module.exports = {
   LOCALE: 'fa_IR',
   UA_FAMILY: 'Mobile Safari',
   PROFILE: 'main',
-  PROFILE_ID: '611828006434380101',
+  PROFILE_ID: '611828001111111101',
   PROFILE_TYPE: 41,
   BUNDLE: 'blu.saman.solutions',
   ENV_KEY: 'f6s95EHQRkUu77f7sS38Nk',
