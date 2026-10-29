@@ -1,0 +1,23 @@
+{
+  "name": "blu-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal HTTP API for Blu Bank",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "login": "node cli.js login",
+    "otp": "node cli.js otp",
+    "status": "node cli.js status",
+    "logout": "node cli.js logout",
+    "balance": "node cli.js balance"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5"
+  }
+}
