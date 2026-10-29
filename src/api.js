@@ -51,6 +51,14 @@ class Api {
     return this._post('../v1/account/card/list/processed', 'AccountCardListProcessedRequest', 'AccountCardListProcessedResponse');
   }
 
+  // Dynamic second password (رمز دوم پویا) for one card. The password comes back
+  // sealed under the session key and is only valid for a couple of minutes.
+  cardOtp(card) {
+    return this._post('../v1/account/card/otp/generate', 'CardGenerateOTPRequest', 'CardGenerateOTPResponse', [
+      P.msg(2, [P.str(1, card)]),
+    ]);
+  }
+
   // Owner name lookup for a destination card or IBAN.
   owner(identifier) {
     return this._post('account/owner/get', 'AccountGetOwnerRequest', 'AccountGetOwnerResponse', [P.str(3, identifier)]);

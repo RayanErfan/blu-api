@@ -53,11 +53,12 @@ def destination():
     """A card to send the test transfer to: argv, else one of the account's own."""
     if len(sys.argv) > 1:
         return sys.argv[1]
-    _, payload = call("cards")
-    card = ((payload.get("3") or {}).get("1") or "").strip()
+    # cards/all carries the full pan; cards only the masked one.
+    _, payload = call("cards/all")
+    card = (((payload.get("3") or {}).get("2") or {}).get("1") or "").strip()
     if not card:
-        _, payload = call("cards/all")
-        card = (((payload.get("3") or {}).get("2") or {}).get("1") or "").strip()
+        _, payload = call("cards")
+        card = ((payload.get("3") or {}).get("1") or "").strip()
     if not card:
         sys.exit("no card found, pass one as an argument")
     return card
@@ -74,6 +75,9 @@ def main():
 
     status, payload = call("owner/" + to)
     save("owner", payload)
+
+    status, payload = call(f"cards/{to}/otp")
+    save("card_otp", payload)
 
     status, payload = call("transfers", "POST", {"amount": 1000, "to": to})
     save("transfers_create", payload)

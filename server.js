@@ -117,6 +117,13 @@ app.get('/cards', raw(() => api.cards()));
 app.get('/cards/all', raw(() => api.allCards()));
 app.get('/cards/processed', raw(() => api.processedCards()));
 
+// Dynamic second password (رمز دوم پویا) for one card, valid for about two
+// minutes. `card` is the PAN.
+app.get('/cards/:card/otp', wrap(async (req) => {
+  const res = await api.cardOtp(req.params.card);
+  return D.cardOtp(res, client.s && client.s._secret);
+}));
+
 app.get('/owner/:identifier', raw((req) => api.owner(req.params.identifier)));
 
 // ---- transactions ----

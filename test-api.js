@@ -2,6 +2,8 @@
 // Smoke test: exercises every read route against the stored session.
 const { BluClient } = require('./src/client');
 const { Api } = require('./src/api');
+const P = require('./src/proto');
+const D = require('./src/derive');
 
 const METHODS = [
   'profile', 'profiles', 'banners', 'deposits', 'cards', 'allCards', 'processedCards',
@@ -25,6 +27,18 @@ const METHODS = [
       console.log(m.padEnd(24), 'FAIL', e.status, (e.body || Buffer.alloc(0)).toString('utf8').slice(0, 80).replace(/\s+/g, ' '));
     }
   }
+  // cardOtp needs a pan, so it is exercised on its own.
+  try {
+    const all = await a.allCards();
+    const card = P.first(P.first(P.first(all, 3), 2), 1).toString('utf8');
+    const otp = D.cardOtp(await a.cardOtp(card), c.s._secret);
+    if (!otp.code) throw new Error('no code');
+    console.log('cardOtp'.padEnd(24), 'OK', otp.code);
+  } catch (e) {
+    bad++;
+    console.log('cardOtp'.padEnd(24), 'FAIL', e.status || '', e.message);
+  }
+
   console.log(bad ? `${bad} failed` : 'all ok');
   process.exit(bad ? 1 : 0);
 })().catch((e) => {

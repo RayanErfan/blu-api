@@ -174,6 +174,18 @@ class Client:
         """Card orders that have been processed."""
         return self._get("cards/processed")
 
+    def card_otp(self, card: str) -> Dict[str, Any]:
+        """Generate the dynamic second password (رمز دوم پویا) for a card.
+
+        :param card: the card PAN.
+
+        Returns ``code``, the six digits to type into a payment form, plus the
+        validity window: ``validFrom``, ``expiresIn`` (seconds, about 120) and
+        ``expiresAt`` (epoch milliseconds). The code is single-use and expires
+        quickly, so fetch it right before paying.
+        """
+        return self._get("cards/" + urllib.parse.quote(card, safe="") + "/otp")
+
     def owner(self, identifier: str) -> Dict[str, Any]:
         """Resolve the owner name and bank behind a card number or IBAN."""
         return self._get("owner/" + urllib.parse.quote(identifier, safe=""))

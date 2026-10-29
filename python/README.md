@@ -47,11 +47,22 @@ blu.transfer(1000, "IR000560611828001111111101", method=bluapi.PAYA)
 Amounts are IRR. Source and destination must differ, so the account's own Blu
 card cannot be the destination. This moves real money.
 
+### Card payments
+
+```python
+blu.card_otp("6219865551234568")
+# {'code': '123456', 'otpRequest': '73443', 'validFrom': ..., 'expiresIn': 120, ...}
+```
+
+The dynamic second password a card payment asks for: six digits, single use,
+valid for about two minutes. Fetch it right before paying.
+
 ### Everything else
 
 ```python
 blu.status()            blu.profile()          blu.balances()
 blu.cards()             blu.all_cards()        blu.transactions()
+blu.card_otp(card)      # رمز دوم پویا, valid ~2 minutes
 blu.recent_transfers()  blu.scheduled_transfers()
 blu.banks()             blu.contacts()         blu.cheques()
 blu.cashback_categories()                      blu.cashback_vendors()

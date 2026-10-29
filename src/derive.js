@@ -3,6 +3,7 @@
 // the few values the API needs (balances, a source card).
 
 const P = require('./proto');
+const X = require('./crypto');
 
 // Persian digits and the RTL mark are common in formatted strings.
 function text(v) {
@@ -47,4 +48,49 @@ function primarySource(cards) {
   return null;
 }
 
-module.exports = { text, amount, balances, primarySource, toJson: P.toJson };
+// The dynamic second password (رمز دوم پویا) for a card. The reply carries an
+// otpRequest window in f2 and the password sealed under the session key in f3.
+//
+// The sealed blob is 34 bytes (12 nonce, 6 digits, 16 tag) and it usually
+// starts with bytes that look like a protobuf header, so a JSON view of the
+// reply cuts it short. This walks the raw bytes instead: every length-delimited
+// field under f3 is a candidate, outer before inner, and the first one that
+// authenticates wins.
+function sealedCandidates(buf, out = []) {
+  if (!buf || !buf.length) return out;
+  out.push(buf);
+  let fields;
+  try {
+    fields = P.decode(buf);
+  } catch {
+    return out;
+  }
+  for (const f of fields) if (f.wire === 2) sealedCandidates(f.value, out);
+  return out;
+}
+
+function cardOtp(res, secret) {
+  const req = P.toJson(P.first(res, 2)) || {};
+  const validFrom = Number((req['2'] && req['2']['1']) || 0);
+  const duration = Number((req['3'] && req['3']['1']) || 0);
+
+  let code = null;
+  for (const buf of sealedCandidates(P.first(res, 3))) {
+    try {
+      code = X.aesOpen(secret, buf).toString('utf8');
+      break;
+    } catch {
+      // try the next one
+    }
+  }
+
+  return {
+    code,
+    otpRequest: text(req['1']),
+    validFrom,
+    expiresIn: duration,
+    expiresAt: validFrom ? (validFrom + duration) * 1000 : null,
+  };
+}
+
+module.exports = { text, amount, balances, primarySource, cardOtp, toJson: P.toJson };

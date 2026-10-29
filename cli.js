@@ -8,6 +8,7 @@
 //   node cli.js logout                        forget the session
 //   node cli.js call <path> [json]            raw gateway call
 //   node cli.js balance                       balances as JSON
+//   node cli.js card-otp <card>               dynamic second password for a card
 
 const readline = require('readline');
 const { BluClient, BluError } = require('./src/client');
@@ -93,6 +94,14 @@ async function main() {
     return;
   }
 
+  if (cmd === 'card-otp') {
+    const card = rest[0];
+    if (!card) throw new Error('usage: card-otp <card>');
+    await client.ensure();
+    out(D.cardOtp(await api.cardOtp(card), client.s._secret));
+    return;
+  }
+
   if (cmd === 'call') {
     const path = rest[0];
     if (!path) throw new Error('usage: call <path> [json]');
@@ -104,7 +113,7 @@ async function main() {
     return;
   }
 
-  console.log('usage: node cli.js <login|otp|status|logout|balance|call>');
+  console.log('usage: node cli.js <login|otp|status|logout|balance|card-otp|call>');
 }
 
 main().catch((e) => {

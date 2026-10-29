@@ -110,6 +110,7 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 | GET | `/cards` | recent transfer cards |
 | GET | `/cards/all` | own cards |
 | GET | `/cards/processed` | processed card orders |
+| GET | `/cards/:card/otp` | dynamic second password (رمز دوم پویا) for a card |
 | GET | `/owner/:identifier` | owner lookup for a card or IBAN |
 | GET | `/transactions` | full transaction history |
 | GET | `/transactions/categories` | merchant categories |
@@ -136,6 +137,22 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 Transfer methods: `24` card-to-card, `25` instant (Pol), `26` Paya, `27` Satna.
 The default is `24`.
 
+### Dynamic second password
+
+Card payments ask for a رمز دوم پویا (dynamic second password) instead of the
+static CVV2. It is six digits, single use, and the server starts a two-minute
+clock the moment it is issued:
+
+```
+curl -s localhost:8088/cards/6104335551234567/otp
+{"code":"123456","otpRequest":"73443","validFrom":1793282709,"expiresIn":120,"expiresAt":1793282829000}
+```
+
+The card is the full PAN — `/cards/all` carries it, `/cards` only the masked
+one. The password comes back sealed under the session key and is opened locally,
+so it never crosses the wire in clear. Fetch it right before paying, not in
+advance.
+
 ## CLI
 
 ```
@@ -143,6 +160,7 @@ node cli.js login [user] [pass]
 node cli.js otp <code>
 node cli.js status
 node cli.js balance
+node cli.js card-otp <card>
 node cli.js logout
 node cli.js call account/deposit/list/all '{"req":"solutions.saman.bluebank.services.AccountListAllRequest","resp":"...Response"}'
 ```

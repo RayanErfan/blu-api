@@ -52,6 +52,7 @@ Set `BLU_BASE` if the server is not on `http://127.0.0.1:8088`, and
 | `otp.py` | finish a fresh-device login |
 | `logout.py` | drop the session |
 | `transfer.py` | send money |
+| `methods/card_otp.py` | dynamic second password for a card |
 | `transfer_get.py` | fetch one transfer |
 | `transfer_cancel.py` | cancel a transfer |
 | `raw.py` | call a gateway route with no dedicated endpoint |
@@ -62,7 +63,7 @@ Set `BLU_BASE` if the server is not on `http://127.0.0.1:8088`, and
 
 ```
 status  profile  profiles  balance  balances  cards  cards_all  cards_processed
-owner  transactions  transactions_categories  transactions_hashtags
+owner  card_otp  transactions  transactions_categories  transactions_hashtags
 transfers_recent  transfers_scheduled  charge_recent_phones
 internet_recent_phones  bill_favorites  banks  banners  onboarding  junior
 identities  cashback_categories  cashback_vendors  cheques  contacts

@@ -27,6 +27,7 @@ COMMANDS = {
     "cards": ("cards", 0),
     "all-cards": ("all_cards", 0),
     "processed-cards": ("processed_cards", 0),
+    "card-otp": ("card_otp", 1),
     "owner": ("owner", 1),
     "transactions": ("transactions", 0),
     "categories": ("merchant_categories", 0),

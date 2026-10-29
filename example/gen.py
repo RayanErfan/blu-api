@@ -6,6 +6,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "methods")
 os.makedirs(OUT, exist_ok=True)
 
+CARD_OTP = '''if len(sys.argv) > 1:
+    card = sys.argv[1]
+else:
+    # cards/all carries the full pan; cards only the masked one.
+    all_cards = blu.get("cards/all")
+    card = (((all_cards.get("3") or {}).get("2") or {}).get("1") or "").strip()
+    if not card:
+        sys.exit("no card, pass one: python3 card_otp.py 6037...")
+
+result = blu.get("cards/" + card + "/otp")
+blu.show(f"Dynamic password for {card}", result)
+print("\\nvalid for", result.get("expiresIn"), "seconds")'''
+
 # (slug, title, path, body, note)
 METHODS = [
     ("status", "Session status", "status", None,
@@ -59,6 +72,17 @@ METHODS = [
      "Registered cheques. Only the cursor comes back when none exist."),
     ("contacts", "Recent contacts", "contacts", None,
      "Contacts available as transfer destinations."),
+    ("card_otp", "Dynamic second password", "cards/{card}/otp", CARD_OTP,
+     "The رمز دوم پویا a card payment asks for: six digits, single use, valid for\n"
+     "about two minutes. The card is the full PAN and defaults to the first card in\n"
+     "your card list.\n"
+     "\n"
+     "The reply carries the window as well:\n"
+     "\n"
+     '    {"code": "123456", "otpRequest": "73443",\n'
+     '     "validFrom": 1793282709, "expiresIn": 120, "expiresAt": 1793282829000}\n'
+     "\n"
+     "Fetch it immediately before paying — the clock starts on the server, not here."),
 ]
 
 TEMPLATE = '''#!/usr/bin/env python3
@@ -77,12 +101,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import blu
 
-result = blu.get("{path}")
-blu.show("{title}", result)
+{body}
 '''
 
+DEFAULT = 'result = blu.get("{path}")\nblu.show("{title}", result)'
+
 for slug, title, path, body, note in METHODS:
+    code = body or DEFAULT.format(path=path, title=title)
     with open(os.path.join(OUT, slug + ".py"), "w", encoding="utf-8") as f:
-        f.write(TEMPLATE.format(slug=slug, title=title, path=path, note=note))
+        f.write(TEMPLATE.format(slug=slug, title=title, path=path, note=note, body=code))
 
 print(f"wrote {len(METHODS)} scripts")
