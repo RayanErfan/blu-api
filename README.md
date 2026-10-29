@@ -23,6 +23,15 @@ curl -s -X POST localhost:8088/transfers -H 'content-type: application/json' \
 `example/` has a Python script per endpoint and a recorded response for each,
 with the account details replaced by fake ones. See `example/README.md`.
 
+There is also a published Python client, [`bluapi`](https://pypi.org/project/bluapi/):
+
+```python
+import bluapi
+
+with bluapi.Client() as blu:
+    print(blu.balance()["total"])
+```
+
 ---
 
 ## Why a proxy
@@ -81,6 +90,7 @@ trusting the device. `npm run logout` wipes it.
 | `server.js` | HTTP API |
 | `cli.js` | login, OTP, status, raw calls |
 | `example/` | Python examples, one per endpoint, plus captured responses |
+| `python/` | the `bluapi` package published to PyPI |
 
 ## Endpoints
 

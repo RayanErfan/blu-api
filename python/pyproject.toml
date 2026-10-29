@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bluapi"
+version = "0.1.0"
+description = "Python client for the Blu Bank HTTP API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "RayanErfan", email = "rayanerfan@users.noreply.github.com" }]
+keywords = ["blu", "blubank", "banking", "api", "client", "iran"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/RayanErfan/blu-api"
+Repository = "https://github.com/RayanErfan/blu-api"
+Documentation = "https://github.com/RayanErfan/blu-api/blob/main/python/README.md"
+Issues = "https://github.com/RayanErfan/blu-api/issues"
+
+[project.scripts]
+bluapi = "bluapi.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bluapi"]
