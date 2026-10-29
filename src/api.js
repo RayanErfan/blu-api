@@ -70,6 +70,37 @@ class Api {
     return this._post('account/transaction/list/all', 'AccountTransactionListAllRequest', 'AccountTransactionListAllResponse');
   }
 
+  // One transaction in full, by the row id from the list. The reply carries the
+  // receipt number, the counterparty and the receipt text.
+  transactionDetail(id) {
+    return this._post('account/transaction/list/all', 'AccountTransactionListAllRequest', 'AccountTransactionListAllResponse', [
+      P.msg(3, [P.str(1, id)]),
+    ]);
+  }
+
+  // Find a transaction by its receipt number (کد پیگیری). The gateway has no
+  // lookup by receipt, so this walks the history a page at a time and asks for
+  // the detail of each row until one matches. Returns null when nothing does.
+  async findTransaction(code, { pages = 50, size = 20 } = {}) {
+    for (let page = 1; page <= pages; page++) {
+      const res = await this._post('account/transaction/list/all', 'AccountTransactionListAllRequest', 'AccountTransactionListAllResponse', [
+        P.msg(2, [P.num(1, size), P.num(2, page)]),
+      ]);
+      const rows = P.all(res, 3);
+      if (!rows.length) return null;
+      for (const row of rows) {
+        const id = P.first(row, 1);
+        if (!id) continue;
+        const detail = await this.transactionDetail(id.toString('utf8'));
+        const found = P.first(detail, 3);
+        const receiptMsg = found && P.first(found, 17);
+        const receipt = receiptMsg && P.first(receiptMsg, 1);
+        if (receipt && receipt.toString('utf8') === String(code)) return found;
+      }
+    }
+    return null;
+  }
+
   // `type` 1 = debits, 2 = credits.
   merchantCategories(type = 1) {
     return this._post('account/transaction/merchant-categories/list', 'TransactionListMerchantCategoriesRequest', 'TransactionListMerchantCategoriesResponse', [

@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 BASE = os.environ.get("BLU_BASE", "http://127.0.0.1:8088")
@@ -78,6 +79,16 @@ def main():
 
     status, payload = call(f"cards/{to}/otp")
     save("card_otp", payload)
+
+    # One transaction by its receipt number, taken from the newest transaction.
+    _, recent = call("transactions")
+    rows = recent.get("3") or []
+    if rows:
+        _, detail = call("transactions/detail/" + urllib.parse.quote(rows[0]["1"], safe=""))
+        receipt = detail.get("receipt")
+        if receipt:
+            status, payload = call("transactions/find/" + receipt)
+            save("transaction_find", payload)
 
     status, payload = call("transfers", "POST", {"amount": 1000, "to": to})
     save("transfers_create", payload)

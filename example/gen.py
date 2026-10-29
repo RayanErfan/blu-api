@@ -19,6 +19,13 @@ result = blu.get("cards/" + card + "/otp")
 blu.show(f"Dynamic password for {card}", result)
 print("\\nvalid for", result.get("expiresIn"), "seconds")'''
 
+TRANSACTION_FIND = '''code = sys.argv[1] if len(sys.argv) > 1 else "249042"
+
+result = blu.get("transactions/find/" + code)
+if result.get("error"):
+    sys.exit(result["error"])
+blu.show("Transaction " + code, result)'''
+
 # (slug, title, path, body, note)
 METHODS = [
     ("status", "Session status", "status", None,
@@ -72,6 +79,10 @@ METHODS = [
      "Registered cheques. Only the cursor comes back when none exist."),
     ("contacts", "Recent contacts", "contacts", None,
      "Contacts available as transfer destinations."),
+    ("transaction_find", "Find a transaction", "transactions/find/{code}", TRANSACTION_FIND,
+     "One transaction by its receipt number (کد پیگیری). The gateway has no lookup\n"
+     "by receipt, so the server walks the history page by page until one matches —\n"
+     "pass `?pages=` on the HTTP route to search further back."),
     ("card_otp", "Dynamic second password", "cards/{card}/otp", CARD_OTP,
      "The رمز دوم پویا a card payment asks for: six digits, single use, valid for\n"
      "about two minutes. The card is the full PAN and defaults to the first card in\n"

@@ -7,6 +7,7 @@ const express = require('express');
 const { BluClient, BluError } = require('./src/client');
 const { Api } = require('./src/api');
 const D = require('./src/derive');
+const P = require('./src/proto');
 const store = require('./src/session');
 
 const PORT = Number(process.env.PORT || 8088);
@@ -131,6 +132,24 @@ app.get('/owner/:identifier', raw((req) => api.owner(req.params.identifier)));
 app.get('/transactions', raw(() => api.transactions()));
 app.get('/transactions/categories', raw(() => api.merchantCategories()));
 app.get('/transactions/hashtags', raw(() => api.transactionHashtags()));
+
+// One transaction by its receipt number (کد پیگیری). There is no lookup by
+// receipt, so this walks the history; `?pages=` bounds how far back it goes.
+app.get('/transactions/find/:code', wrap(async (req) => {
+  const pages = Math.min(Number(req.query.pages) || 50, 500);
+  const row = await api.findTransaction(req.params.code, { pages });
+  if (!row) return { error: 'no transaction with that receipt number', receipt: req.params.code };
+  return D.transactionDetail(D.toJson(row));
+}));
+
+// One transaction by the row id from the list. The id is base64 and can contain
+// `/`, so callers must percent-encode it.
+app.get('/transactions/detail/:id', wrap(async (req) => {
+  const res = await api.transactionDetail(req.params.id);
+  const row = P.first(res, 3);
+  if (!row) return { error: 'no such transaction' };
+  return D.transactionDetail(D.toJson(row));
+}));
 
 // ---- transfers ----
 

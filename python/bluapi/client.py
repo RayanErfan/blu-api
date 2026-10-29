@@ -174,6 +174,20 @@ class Client:
         """Card orders that have been processed."""
         return self._get("cards/processed")
 
+    def find_transaction(self, receipt: str, pages: int = 50) -> Dict[str, Any]:
+        """Find one transaction by its receipt number (کد پیگیری).
+
+        :param receipt: the receipt number, e.g. ``"249042"``.
+        :param pages: how many history pages to walk before giving up.
+
+        There is no lookup by receipt on the gateway, so the server walks the
+        history a page at a time. Returns the transaction detail, or
+        ``{"error": ...}`` when nothing matches.
+        """
+        return self._get(
+            "transactions/find/" + urllib.parse.quote(receipt, safe="") + "?pages=" + str(int(pages))
+        )
+
     def card_otp(self, card: str) -> Dict[str, Any]:
         """Generate the dynamic second password (رمز دوم پویا) for a card.
 

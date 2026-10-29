@@ -57,12 +57,23 @@ blu.card_otp("6219865551234568")
 The dynamic second password a card payment asks for: six digits, single use,
 valid for about two minutes. Fetch it right before paying.
 
+### Finding a transaction
+
+```python
+blu.find_transaction("249042")
+# {'receipt': '249042', 'type': 'انتقال به کارت', 'amount': '۱۰٬۰۰۰ ریال', ...}
+```
+
+Every receipt carries a کد پیگیری. There is no lookup by it, so the server
+walks the history page by page; `pages=` bounds how far back it goes.
+
 ### Everything else
 
 ```python
 blu.status()            blu.profile()          blu.balances()
 blu.cards()             blu.all_cards()        blu.transactions()
 blu.card_otp(card)      # رمز دوم پویا, valid ~2 minutes
+blu.find_transaction("249042")  # by receipt number, walks the history
 blu.recent_transfers()  blu.scheduled_transfers()
 blu.banks()             blu.contacts()         blu.cheques()
 blu.cashback_categories()                      blu.cashback_vendors()

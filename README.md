@@ -113,6 +113,8 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 | GET | `/cards/:card/otp` | dynamic second password (رمز دوم پویا) for a card |
 | GET | `/owner/:identifier` | owner lookup for a card or IBAN |
 | GET | `/transactions` | full transaction history |
+| GET | `/transactions/detail/:id` | one transaction by row id |
+| GET | `/transactions/find/:code` | one transaction by receipt number (کد پیگیری) |
 | GET | `/transactions/categories` | merchant categories |
 | GET | `/transactions/hashtags` | hashtags |
 | GET | `/transfers/recent` | recent transfer destinations |
@@ -136,6 +138,20 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 
 Transfer methods: `24` card-to-card, `25` instant (Pol), `26` Paya, `27` Satna.
 The default is `24`.
+
+### Finding a transaction
+
+Every receipt carries a کد پیگیری (receipt number). The gateway has no lookup
+by it, so `/transactions/find/:code` walks the history a page at a time and
+returns the first row whose receipt matches:
+
+```
+curl -s localhost:8088/transactions/find/249042
+{"receipt":"249042","type":"انتقال به کارت","amount":"۱۰٬۰۰۰ ریال", ...}
+```
+
+`?pages=` bounds the walk (default 50, max 500). The receipt also appears in the
+row's `description` as `شماره پیگیری`, next to the `شماره مرجع` reference number.
 
 ### Dynamic second password
 
@@ -161,6 +177,7 @@ node cli.js otp <code>
 node cli.js status
 node cli.js balance
 node cli.js card-otp <card>
+node cli.js transaction-find <receipt>
 node cli.js logout
 node cli.js call account/deposit/list/all '{"req":"solutions.saman.bluebank.services.AccountListAllRequest","resp":"...Response"}'
 ```

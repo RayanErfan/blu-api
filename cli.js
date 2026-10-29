@@ -9,6 +9,7 @@
 //   node cli.js call <path> [json]            raw gateway call
 //   node cli.js balance                       balances as JSON
 //   node cli.js card-otp <card>               dynamic second password for a card
+//   node cli.js transaction-find <code>       find a transaction by its receipt number
 
 const readline = require('readline');
 const { BluClient, BluError } = require('./src/client');
@@ -102,6 +103,16 @@ async function main() {
     return;
   }
 
+  if (cmd === 'transaction-find') {
+    const code = rest[0];
+    if (!code) throw new Error('usage: transaction-find <receipt>');
+    await client.ensure();
+    const row = await api.findTransaction(code);
+    if (!row) throw new Error('no transaction with receipt ' + code);
+    out(D.transactionDetail(D.toJson(row)));
+    return;
+  }
+
   if (cmd === 'call') {
     const path = rest[0];
     if (!path) throw new Error('usage: call <path> [json]');
@@ -113,7 +124,7 @@ async function main() {
     return;
   }
 
-  console.log('usage: node cli.js <login|otp|status|logout|balance|card-otp|call>');
+  console.log('usage: node cli.js <login|otp|status|logout|balance|card-otp|transaction-find|call>');
 }
 
 main().catch((e) => {

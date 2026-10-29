@@ -93,4 +93,26 @@ function cardOtp(res, secret) {
   };
 }
 
-module.exports = { text, amount, balances, primarySource, cardOtp, toJson: P.toJson };
+// One transaction in full. The receipt number (کد پیگیری) is f17.1 and the
+// rest is the usual amount, date, direction and counterparty tree.
+function transactionDetail(row) {
+  const at = (node, ...path) => path.reduce((x, k) => (x == null ? x : x[k]), node);
+  return {
+    receipt: text(at(row, '17', '1')),
+    status: text(at(row, '17', '3')),
+    type: text(at(row, '3', '2')),
+    amount: text(at(row, '4', '1', '15')),
+    currency: text(at(row, '4', '1', '2', '15')),
+    date: text(at(row, '5', '1', '2', '4')),
+    time: text(at(row, '5', '1', '3', '3')),
+    direction: text(at(row, '6', '15')),
+    counterparty: text(at(row, '10', '2', '1')),
+    counterpartyCard: text(at(row, '10', '1', '15')),
+    subject: text(at(row, '14')),
+    description: text(at(row, '15')),
+    receiptText: text(at(row, '17', '5', '1', '1')),
+    tracking: text(at(row, '1')),
+  };
+}
+
+module.exports = { text, amount, balances, primarySource, cardOtp, transactionDetail, toJson: P.toJson };
