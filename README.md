@@ -274,6 +274,12 @@ node cli.js logout
 node cli.js call account/deposit/list/all '{"req":"solutions.saman.bluebank.services.AccountListAllRequest","resp":"...Response"}'
 ```
 
+## Thanks
+
+Business-profile and payment-link testing ran on an account lent by
+[@DevURANIUM](https://github.com/DevURANIUM). See
+[CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 ## Notes
 
 - Request bodies are raw protobuf with no `.proto`; fields are addressed by

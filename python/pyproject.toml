@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bluapi"
-version = "0.4.0"
+version = "0.4.1"
 description = "Python client for the Blu Bank HTTP API"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -35,6 +35,7 @@ Homepage = "https://github.com/RayanErfan/blu-api"
 Repository = "https://github.com/RayanErfan/blu-api"
 Documentation = "https://github.com/RayanErfan/blu-api/blob/main/python/README.md"
 Issues = "https://github.com/RayanErfan/blu-api/issues"
+Contributors = "https://github.com/RayanErfan/blu-api/blob/main/CONTRIBUTORS.md"
 
 [project.scripts]
 bluapi = "bluapi.__main__:main"
