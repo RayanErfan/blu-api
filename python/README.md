@@ -67,6 +67,20 @@ blu.find_transaction("249042")
 Every receipt carries a کد پیگیری. There is no lookup by it, so the server
 walks the history page by page; `pages=` bounds how far back it goes.
 
+### Payment links
+
+```python
+blu.payment_links()                       # links and payments on the business profile
+blu.general_payment_link()                # permanent «لینک عمومی»
+blu.create_payment_link(1000000, "سفارش ۱۲۳")
+blu.validate_payment_link(link_id, 1000000)
+blu.payment_link_receipt(link_id)
+```
+
+`payment_links()` returns every created link plus one row per payment, the
+general link and the allowed amount range. Statuses are `1` waiting, `2` paid,
+`3` settled, `4` expired, `5` canceled.
+
 ### Everything else
 
 ```python

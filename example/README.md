@@ -54,6 +54,9 @@ Set `BLU_BASE` if the server is not on `http://127.0.0.1:8088`, and
 | `transfer.py` | send money |
 | `methods/card_otp.py` | dynamic second password for a card |
 | `methods/transaction_find.py` | one transaction by its receipt number |
+| `methods/payment_links.py` | business links, payments and the general link |
+| `methods/payment_link_create.py` | create a payment link |
+| `methods/payment_link_validate.py` | check whether a link can be paid |
 | `transfer_get.py` | fetch one transfer |
 | `transfer_cancel.py` | cancel a transfer |
 | `raw.py` | call a gateway route with no dedicated endpoint |
@@ -69,7 +72,8 @@ owner  card_otp  transaction_find  transactions  transactions_categories
 transactions_hashtags  transfers_recent  transfers_scheduled
 charge_recent_phones  internet_recent_phones  bill_favorites  banks  banners
 onboarding  junior  identities  cashback_categories  cashback_vendors  cheques
-contacts
+contacts  payment_links  payment_link_general  payment_link_create
+payment_link_validate
 ```
 
 ## Capturing

@@ -236,6 +236,57 @@ class Client:
         """Resolve the owner name and bank behind a card number or IBAN."""
         return self._get("owner/" + urllib.parse.quote(identifier, safe=""))
 
+    # ---- payment links (لینک پرداخت) ----
+
+    def payment_links(self, count: int = 20) -> Dict[str, Any]:
+        """Links and payments on the business profile.
+
+        The «لینک‌ها و پرداخت‌ها» tab is one list: every created link, and one
+        row per payment once a link has been paid. The reply also carries the
+        permanent general link and the range a new link's amount must fall in.
+
+        :param count: how many rows to ask for (the server caps it at 100).
+        """
+        return self._get("payment-links?count=" + str(int(count)))
+
+    def general_payment_link(self) -> Dict[str, Any]:
+        """The permanent «لینک عمومی» of the business profile."""
+        return self._get("payment-links/general")
+
+    def create_payment_link(
+        self, amount: int, description: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create a unique link for a fixed amount.
+
+        :param amount: amount in IRR. A fresh business profile accepts
+            1,000,000 to 100,000,000 IRR; see ``payment_links()`` for the
+            current range.
+        :param description: optional note kept with the link.
+        """
+        body: Dict[str, Any] = {"amount": amount}
+        if description:
+            body["description"] = description
+        return self._post("payment-links/create", body)
+
+    def validate_payment_link(
+        self, link_id: str, amount: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Check whether a link can be paid.
+
+        Returns ``valid`` plus either the transfer info or the reason it cannot
+        be paid (a business whose gateway is disabled gets the latter).
+        """
+        body: Dict[str, Any] = {"id": link_id}
+        if amount is not None:
+            body["amount"] = amount
+        return self._post("payment-links/validate", body)
+
+    def payment_link_receipt(self, link_id: str) -> Dict[str, Any]:
+        """Receipt of a paid link."""
+        return self._get(
+            "payment-links/" + urllib.parse.quote(link_id, safe="") + "/receipt"
+        )
+
     # ---- transactions ----
 
     def transactions(

@@ -119,6 +119,11 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 | GET | `/transactions/find/:code` | one transaction by receipt number (کد پیگیری) |
 | GET | `/transactions/categories` | merchant categories |
 | GET | `/transactions/hashtags` | hashtags |
+| GET | `/payment-links` | business links and payments; `?count=` |
+| GET | `/payment-links/general` | permanent «لینک عمومی» of the business |
+| POST | `/payment-links/create` | `{amount,description?}` on the business profile |
+| POST | `/payment-links/validate` | `{id,amount?}` payer-side check |
+| GET | `/payment-links/:id/receipt` | receipt of a paid link |
 | GET | `/transfers/recent` | recent transfer destinations |
 | GET | `/transfers/scheduled` | scheduled transfer contracts |
 | GET | `/transfers/:id` | one transfer |
@@ -189,6 +194,49 @@ curl -s "localhost:8088/transactions?account=611828002222222202&size=20"
 A plain `/transactions` shows the active profile only. Asking `/accounts` (by
 party id) is what surfaces the business balance.
 
+### Payment links (لینک پرداخت)
+
+A business profile has a «لینک پرداخت» section with a permanent «لینک عمومی»
+and a «لینک‌ها و پرداخت‌ها» tab. That tab is one list: every link created for a
+fixed amount, and one row per payment once a link is paid. The toolkit exposes
+it as-is:
+
+```
+curl -s "localhost:8088/payment-links?count=20"
+{"links":[
+  {"id":"…","title":"لینک پرداخت ۲","amount":{"value":"2500000","currency":"IRR"},
+   "status":"2","statusLabel":"پرداخت‌شده","type":"2","typeLabel":"لینک اختصاصی",
+   "link":"https://blubiz.sb24.com/s/…","transactionId":"…","details":{…}}],
+ "generalLink":{"title":"لینک عمومی","url":"https://blubiz.sb24.com/s/…","status":"1","statusLabel":"فعال"},
+ "creationRestriction":{"minimum":{"value":"1000000","currency":"IRR"},
+                        "maximum":{"value":"100000000","currency":"IRR"}}}
+```
+
+`status` is `1` waiting for payment, `2` paid, `3` settled, `4` expired, `5`
+canceled; `type` is `1` general and `2` unique. A new link must sit inside
+`creationRestriction` (1,000,000–100,000,000 IRR on a fresh business profile):
+
+```
+curl -s -X POST localhost:8088/payment-links/create \
+  -H 'content-type: application/json' \
+  -d '{"amount":1000000,"description":"سفارش ۱۲۳"}'
+```
+
+The server assigns the title («لینک پرداخت N») and a 24-hour expiry. Payer-side
+checks and receipts:
+
+```
+curl -s -X POST localhost:8088/payment-links/validate \
+  -H 'content-type: application/json' -d '{"id":"…","amount":1000000}'
+curl -s localhost:8088/payment-links/<id>/receipt
+```
+
+These routes select the business profile for the call and restore the previous
+one afterwards, so `/balance` and friends are unaffected. If the business has
+no gateway contract yet, the links are still created but `validate` answers
+with an `invalid` reason (`امکان پرداخت این لینک وجود ندارد`) and the general
+link carries a `notice` saying gateway payment is disabled.
+
 ### Dynamic second password
 
 Card payments ask for a رمز دوم پویا (dynamic second password) instead of the
@@ -217,6 +265,10 @@ node cli.js accounts
 node cli.js cards [account]
 node cli.js transactions [account]
 node cli.js card-otp <card>
+node cli.js payment-links [count]
+node cli.js payment-link-create <amount> [description]
+node cli.js payment-link-validate <id> [amount]
+node cli.js payment-link-receipt <id>
 node cli.js transaction-find <receipt>
 node cli.js logout
 node cli.js call account/deposit/list/all '{"req":"solutions.saman.bluebank.services.AccountListAllRequest","resp":"...Response"}'

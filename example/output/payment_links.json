@@ -1,0 +1,72 @@
+{
+  "links": [
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "title": "لینک پرداخت ۲",
+      "amount": {
+        "value": "2500000",
+        "currency": "IRR"
+      },
+      "amountLabel": "۲٬۵۰۰٬۰۰۰ ریال",
+      "status": "2",
+      "statusLabel": "پرداخت‌شده",
+      "type": "2",
+      "typeLabel": "لینک اختصاصی",
+      "link": "https://blubiz.sb24.com/s/Example02",
+      "display": "blubiz.sb24.com/s/Example02",
+      "transactionId": "00000000-0000-4000-8000-0000000000aa",
+      "messageContent": "فروشگاه نمونه\n\nبفرمایید لینک پرداخت بلو\nhttps://blubiz.sb24.com/s/Example02\n\nاین لینک تا ساعت ۱۲:۳۰، یکشنبه ۱۰ آبان معتبر می‌باشد",
+      "details": {
+        "مبلغ": "۲٬۵۰۰٬۰۰۰ ریال",
+        "لینک": "blubiz.sb24.com/s/Example02",
+        "وضعیت": "پرداخت‌شده",
+        "انقضا": "۲۳ ساعت و ۵۰ دقیقه دیگر",
+        "توضیحات": "سفارش ۱۲۳"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "title": "لینک پرداخت ۱",
+      "amount": {
+        "value": "1000000",
+        "currency": "IRR"
+      },
+      "amountLabel": "۱٬۰۰۰٬۰۰۰ ریال",
+      "status": "1",
+      "statusLabel": "منتظر پرداخت",
+      "type": "2",
+      "typeLabel": "لینک اختصاصی",
+      "link": "https://blubiz.sb24.com/s/Example01",
+      "display": "blubiz.sb24.com/s/Example01",
+      "transactionId": null,
+      "messageContent": "فروشگاه نمونه\n\nبفرمایید لینک پرداخت بلو\nhttps://blubiz.sb24.com/s/Example01\n\nاین لینک تا ساعت ۱۲:۲۹، یکشنبه ۱۰ آبان معتبر می‌باشد",
+      "details": {
+        "مبلغ": "۱٬۰۰۰٬۰۰۰ ریال",
+        "لینک": "blubiz.sb24.com/s/Example01",
+        "وضعیت": "منتظر پرداخت",
+        "انقضا": "۲۳ ساعت و ۴۹ دقیقه دیگر"
+      }
+    }
+  ],
+  "generalLink": {
+    "title": "لینک عمومی",
+    "url": "https://blubiz.sb24.com/s/Example00",
+    "display": "blubiz.sb24.com/s/Example00",
+    "status": "1",
+    "statusLabel": "فعال",
+    "notice": null,
+    "messageContent": "فروشگاه نمونه\n\nبفرمایید لینک پرداخت بلو\nhttps://blubiz.sb24.com/s/Example00"
+  },
+  "creationRestriction": {
+    "minimum": {
+      "value": "1000000",
+      "currency": "IRR"
+    },
+    "maximum": {
+      "value": "100000000",
+      "currency": "IRR"
+    },
+    "minimumLabel": "۱٬۰۰۰٬۰۰۰ ریال",
+    "maximumLabel": "۱۰۰٬۰۰۰٬۰۰۰ ریال"
+  }
+}

@@ -82,18 +82,20 @@ function clientInfo() {
 }
 
 // The leading "app" block shared by key-exchange and login.
-// profileType is AccountProfileType: 1 personal, 2 personal-business, 3 legal.
-// accountType is the deposit product (41 = short-term).
-function profileBlock(profileId, profileType) {
+// f10.1 is the profile id ("main" for the personal profile, a UUID for the
+// rest), f10.2 is the AccountProfileType (1 personal, 2 personal-business,
+// 3 legal), f10.3 carries the account number the call is scoped to and f10.4
+// is the deposit product (41 = short-term).
+function profileBlock(accountNumber, profileType, profileId) {
   return P.msg(10, [
-    P.str(1, C.PROFILE),
+    P.str(1, profileId || C.PROFILE),
     P.num(2, profileType || C.ACCOUNT_PROFILE_TYPE),
-    P.msg(3, [P.str(1, profileId || C.PROFILE_ID)]),
+    P.msg(3, [P.str(1, accountNumber || C.PROFILE_ID)]),
     P.num(4, C.PROFILE_TYPE),
   ]);
 }
 
-function appBlock(deviceId, withProfile, profileId, profileType) {
+function appBlock(deviceId, withProfile, accountNumber, profileType, profileId) {
   return P.msg(1, [
     P.bytes(1, crypto.randomBytes(16)),
     P.msg(8, [
@@ -102,7 +104,7 @@ function appBlock(deviceId, withProfile, profileId, profileType) {
       P.msg(999, versionBlock()),
     ]),
     P.msg(9, [P.str(1, C.LOCALE)]),
-    ...(withProfile ? [profileBlock(profileId, profileType)] : []),
+    ...(withProfile ? [profileBlock(accountNumber, profileType, profileId)] : []),
     clientInfo(),
   ]);
 }
@@ -289,7 +291,11 @@ class BluClient {
   async login(username, password, { keep = false } = {}) {
     if (!this.s) this.newDevice();
     if (!keep) {
-      if (this.s.username !== username) this.s.profileId = null;
+      if (this.s.username !== username) {
+        this.s.profileId = null;
+        this.s.profileRef = null;
+        this.s.profileType = null;
+      }
       this.s.username = username;
       this.s.password = password;
     }
@@ -373,6 +379,8 @@ class BluClient {
       username: s.username,
       password: s.password,
       profileId: s.profileId,
+      profileRef: s.profileRef,
+      profileType: s.profileType,
       otp: s.otp,
       createdAt: s.createdAt,
     };

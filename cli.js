@@ -14,6 +14,10 @@
 //   node cli.js transactions [account]        history, optionally for one account
 //   node cli.js card-otp <card>               dynamic second password for a card
 //   node cli.js transaction-find <code>       find a transaction by its receipt number
+//   node cli.js payment-links [count]         business links, payments, general link
+//   node cli.js payment-link-create <amount> [description]
+//   node cli.js payment-link-validate <id> [amount]
+//   node cli.js payment-link-receipt <id>
 
 const readline = require('readline');
 const { BluClient, BluError } = require('./src/client');
@@ -146,6 +150,53 @@ async function main() {
     return;
   }
 
+  // Payment links live on a business profile, so these commands select it
+  // first. The selection is stored with the session, like the login itself.
+  const business = async () => {
+    await client.ensure();
+    try {
+      return await api.useProfile('business');
+    } catch {
+      throw new Error('this party has no business profile');
+    }
+  };
+
+  if (cmd === 'payment-links') {
+    await business();
+    const j = D.toJson(await api.paymentLinks({ count: Number(rest[0]) || 20 }));
+    out({
+      links: D.paymentLinks(j),
+      generalLink: D.paymentLinkGeneral(j),
+      creationRestriction: D.paymentLinkRestriction(j),
+    });
+    return;
+  }
+
+  if (cmd === 'payment-link-create') {
+    const amount = rest[0];
+    if (!amount) throw new Error('usage: payment-link-create <amount> [description]');
+    await business();
+    const j = D.toJson(await api.createPaymentLink({ amount, description: rest.slice(1).join(' ') || undefined }));
+    out(D.paymentLink(j['2']));
+    return;
+  }
+
+  if (cmd === 'payment-link-validate') {
+    const id = rest[0];
+    if (!id) throw new Error('usage: payment-link-validate <id> [amount]');
+    await client.ensure();
+    out(D.paymentLinkValidity(D.toJson(await api.validatePaymentLink(id, rest[1]))));
+    return;
+  }
+
+  if (cmd === 'payment-link-receipt') {
+    const id = rest[0];
+    if (!id) throw new Error('usage: payment-link-receipt <id>');
+    await business();
+    out(D.toJson(await api.paymentLinkReceipt(id)));
+    return;
+  }
+
   if (cmd === 'call') {
     const path = rest[0];
     if (!path) throw new Error('usage: call <path> [json]');
@@ -157,7 +208,7 @@ async function main() {
     return;
   }
 
-  console.log('usage: node cli.js <login|otp|status|logout|balance|profiles|accounts|cards|transactions|card-otp|transaction-find|call>');
+  console.log('usage: node cli.js <login|otp|status|logout|balance|profiles|accounts|cards|transactions|card-otp|transaction-find|payment-links|payment-link-create|payment-link-validate|payment-link-receipt|call>');
 }
 
 main().catch((e) => {

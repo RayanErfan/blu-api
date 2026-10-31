@@ -23,7 +23,7 @@ GETS = [
     "transfers/recent", "transfers/scheduled", "charge/recent-phones",
     "internet/recent-phones", "bill/favorites", "banks", "banners", "onboarding",
     "junior", "identities", "cashback/categories", "cashback/vendors", "cheques",
-    "contacts",
+    "contacts", "payment-links", "payment-links/general",
 ]
 
 

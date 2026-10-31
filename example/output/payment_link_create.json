@@ -1,0 +1,24 @@
+{
+  "id": "00000000-0000-4000-8000-000000000012",
+  "title": "لینک پرداخت ۳",
+  "amount": {
+    "value": "1000000",
+    "currency": "IRR"
+  },
+  "amountLabel": "۱٬۰۰۰٬۰۰۰ ریال",
+  "status": "1",
+  "statusLabel": "منتظر پرداخت",
+  "type": "2",
+  "typeLabel": "لینک اختصاصی",
+  "link": "https://blubiz.sb24.com/s/Example03",
+  "display": "blubiz.sb24.com/s/Example03",
+  "transactionId": null,
+  "messageContent": "فروشگاه نمونه\n\nبفرمایید لینک پرداخت بلو\nhttps://blubiz.sb24.com/s/Example03\n\nاین لینک تا ساعت ۱۳:۰۵، یکشنبه ۱۰ آبان معتبر می‌باشد",
+  "details": {
+    "مبلغ": "۱٬۰۰۰٬۰۰۰ ریال",
+    "لینک": "blubiz.sb24.com/s/Example03",
+    "وضعیت": "منتظر پرداخت",
+    "انقضا": "۲۳ ساعت و ۵۹ دقیقه دیگر",
+    "توضیحات": "سفارش ۱۲۳"
+  }
+}

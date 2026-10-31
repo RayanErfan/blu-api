@@ -163,4 +163,128 @@ function cards(node) {
   }));
 }
 
-module.exports = { text, amount, balances, primarySource, cardOtp, transactionDetail, profiles, accountKinds, cards, toJson: P.toJson };
+// Payment link enums, as the gateway numbers them.
+const LINK_STATUS = {
+  0: 'نامشخص',
+  1: 'منتظر پرداخت',
+  2: 'پرداخت‌شده',
+  3: 'تسویه‌شده',
+  4: 'منقضی',
+  5: 'لغوشده',
+};
+const LINK_TYPE = { 0: 'نامشخص', 1: 'لینک عمومی', 2: 'لینک اختصاصی' };
+const GENERAL_STATUS = { 0: 'نامشخص', 1: 'فعال', 2: 'غیرفعال' };
+
+// The `details` block on a link is a list of label/value rows (مبلغ، لینک،
+// وضعیت، انقضا، توضیحات). Flatten it so callers can read it by label.
+function detailRows(node) {
+  const list = node && node['7'];
+  if (!list) return {};
+  const rows = Array.isArray(list) ? list : [list];
+  const out = {};
+  for (const r of rows) {
+    const label = text(r['1']);
+    if (label) out[label] = text(r['2']);
+  }
+  return out;
+}
+
+// One PaymentLink: f1 id, f2 title, f4 amount, f5 status, f7 details,
+// f9 link URI, f10 transaction id (once paid), f11 share text, f12 type.
+function paymentLink(node) {
+  const status = text(node['5']);
+  const type = text(node['12']);
+  const details = detailRows(node);
+  return {
+    id: text(node['1']),
+    title: text(node['2']),
+    amount: amount(node['4']),
+    amountLabel: text(node['4'] && node['4']['15']),
+    status,
+    statusLabel: LINK_STATUS[status] || details['وضعیت'] || null,
+    type,
+    typeLabel: LINK_TYPE[type] || null,
+    link: text(node['9'] && node['9']['1']),
+    display: text(node['9'] && node['9']['15']),
+    transactionId: text(node['10']),
+    messageContent: text(node['11']),
+    details,
+  };
+}
+
+// f3[] is the «لینک‌ها و پرداخت‌ها» list: one row per created link, and one per
+// payment once the link has been paid.
+function paymentLinks(node) {
+  const list = node && node['3'];
+  if (!list) return [];
+  const rows = Array.isArray(list) ? list : [list];
+  return rows.map(paymentLink);
+}
+
+// f5 is the permanent «لینک عمومی» of a business profile. f5.5 is its status
+// (1 active), f5.4 is an optional notice {1: code, 3: text}.
+function paymentLinkGeneral(node) {
+  const g = node && node['5'];
+  if (!g) return null;
+  const status = text(g['5']);
+  return {
+    title: text(g['1']),
+    url: text(g['2'] && g['2']['1']),
+    display: text(g['2'] && g['2']['15']),
+    status,
+    statusLabel: GENERAL_STATUS[status] || null,
+    notice: text(g['4'] && g['4']['3']),
+    messageContent: text(g['6']),
+  };
+}
+
+// f4 is the amount range a new link must fall inside.
+function paymentLinkRestriction(node) {
+  const r = node && node['4'];
+  if (!r) return null;
+  return {
+    minimum: amount(r['1']),
+    maximum: amount(r['2']),
+    minimumLabel: text(r['1'] && r['1']['15']),
+    maximumLabel: text(r['2'] && r['2']['15']),
+  };
+}
+
+// Validate / landing replies are a oneof: f2 = payable transfer info,
+// f3 = the reason it cannot be paid.
+function paymentLinkValidity(node) {
+  const invalid = node && node['3'];
+  const transfer = node && node['2'];
+  return {
+    valid: Boolean(transfer) && !invalid,
+    transfer: transfer
+      ? {
+          amount: amount(transfer['1']),
+          owner: text(transfer['2'] && transfer['2']['15']),
+          settleCode: text(transfer['3']),
+          occurrenceType: text(transfer['4']),
+        }
+      : null,
+    invalid: invalid
+      ? { title: text(invalid['1']), message: text(invalid['2']) }
+      : null,
+  };
+}
+
+module.exports = {
+  text,
+  amount,
+  balances,
+  primarySource,
+  cardOtp,
+  transactionDetail,
+  profiles,
+  accountKinds,
+  cards,
+  paymentLink,
+  paymentLinks,
+  paymentLinkGeneral,
+  paymentLinkRestriction,
+  paymentLinkValidity,
+  toJson: P.toJson,
+};

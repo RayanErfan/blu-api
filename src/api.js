@@ -6,6 +6,8 @@
 const C = require('./config');
 const P = require('./proto');
 const X = require('./crypto');
+const D = require('./derive');
+const store = require('./session');
 const { appBlock, deviceIdBinary } = require('./client');
 
 const NS = 'solutions.saman.bluebank.services.';
@@ -16,7 +18,8 @@ class Api {
   }
 
   async _app() {
-    return appBlock(this.c.s.deviceId, true, await this.c.profileId());
+    const s = this.c.s;
+    return appBlock(s.deviceId, true, await this.c.profileId(), s.profileType, s.profileRef);
   }
 
   async _post(path, req, resp, extra) {
@@ -45,6 +48,37 @@ class Api {
       P.bytes(2, deviceIdBinary(this.c.s.deviceId)),
       P.str(3, profileId),
     ]);
+  }
+
+  // Choose the profile later calls act for. `profile` may be an entry from
+  // D.profiles(), an account number, a profile id ("main" or a UUID) or one of
+  // "personal" / "business" / "legal" (also accepted as 1 / 2 / 3).
+  async useProfile(profile) {
+    await this.c.ensure();
+    const s = this.c.s;
+    if (profile === undefined || profile === null) return s;
+
+    const list = D.profiles(P.toJson(await this.profiles()));
+    let p = profile;
+    if (typeof p === 'string') {
+      const names = { personal: 1, business: 2, 'personal-business': 2, legal: 3 };
+      const key = p.toLowerCase();
+      if (names[key] || /^[123]$/.test(p)) {
+        const type = names[key] || Number(p);
+        p = list.find((x) => Number(x.type) === type);
+      } else if (/^[0-9]{18}$/.test(p)) {
+        p = list.find((x) => x.accountNumber === p);
+      } else {
+        p = list.find((x) => x.id === p);
+      }
+      if (!p) throw new Error('no matching profile: ' + profile);
+    }
+
+    s.profileRef = p.id;
+    s.profileType = Number(p.type) || 1;
+    s.profileId = p.accountNumber || p.account || s.profileId;
+    store.save(this.c.strip());
+    return s;
   }
 
   // Deposits. Passing the party id returns every account on the party,
@@ -134,6 +168,55 @@ class Api {
     return this._post('account/transaction/hashtag/list', 'ListHashtagRequest', 'ListHashtagResponse', [
       token ? P.msg(3, [P.str(1, token)]) : Buffer.alloc(0),
     ]);
+  }
+
+  // ---- payment links (لینک پرداخت) ----
+
+  // Links and payments created on a business profile. The gateway only serves
+  // this to a business context, so call `useProfile('business')` first. Without
+  // a `count`/`offset` the gateway returns its default page.
+  //
+  // `ids`, `statuses` (1 unpaid, 2 paid, 3 settled, 4 expired, 5 canceled) and
+  // `types` (1 general, 2 unique) filter the list.
+  paymentLinks({ count, offset, ids, statuses, types } = {}) {
+    const extra = [];
+    if (offset !== undefined && offset !== null) {
+      // Page is a oneof: count and offset cannot both be set.
+      extra.push(P.msg(2, [P.num(2, Number(offset))]));
+    } else {
+      extra.push(P.msg(2, [P.num(1, Number(count) || 50)]));
+    }
+
+    const query = [];
+    (ids || []).forEach((id) => query.push(P.str(1, id)));
+    (statuses || []).forEach((s) => query.push(P.num(2, Number(s))));
+    (types || []).forEach((t) => query.push(P.num(3, Number(t))));
+    if (query.length) extra.push(P.msg(3, query));
+
+    return this._post('../v1/payment-link/list', 'PaymentLinkListRequest', 'PaymentLinkListResponse', extra);
+  }
+
+  // Create a unique link for a fixed amount. Amounts are in IRR and must sit
+  // inside the creationRestriction the list reports (1,000,000–100,000,000 IRR
+  // on a fresh business profile). The title is assigned by the server.
+  createPaymentLink({ amount, description } = {}) {
+    if (amount === undefined || amount === null) throw new Error('amount is required');
+    const extra = [money({ value: amount })];
+    if (description) extra.push(P.str(3, description));
+    return this._post('payment-link/create', 'PaymentLinkCreateRequest', 'PaymentLinkCreateResponse', extra);
+  }
+
+  // Payer-side check before opening the checkout. A business whose gateway is
+  // disabled answers with a PaymentLinkInvalid reason instead of transferInfo.
+  validatePaymentLink(id, amount) {
+    const extra = [P.str(2, id)];
+    if (amount !== undefined && amount !== null) extra.push(money({ value: amount }));
+    return this._post('payment-link/validate', 'PaymentLinkValidateRequest', 'PaymentLinkValidateResponse', extra);
+  }
+
+  // Receipt of a paid link (empty until somebody pays it).
+  paymentLinkReceipt(id) {
+    return this._post('payment-link/receipt', 'PaymentLinkGetReceiptRequest', 'PaymentLinkGetReceiptResponse', [P.str(2, id)]);
   }
 
   // ---- transfers ----

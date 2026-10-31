@@ -180,6 +180,64 @@ app.get('/transactions/detail/:id', wrap(async (req) => {
   return D.transactionDetail(D.toJson(row));
 }));
 
+// ---- payment links (لینک پرداخت) ----
+
+// These routes only answer for a business profile. The previously selected
+// profile is restored afterwards so the rest of the API is unaffected.
+const withBusiness = async (fn) => {
+  await client.ensure();
+  const prev = {
+    profileId: client.s.profileId,
+    profileRef: client.s.profileRef,
+    profileType: client.s.profileType,
+  };
+  await api.useProfile('business');
+  try {
+    return await fn();
+  } finally {
+    client.s.profileId = prev.profileId;
+    client.s.profileRef = prev.profileRef;
+    client.s.profileType = prev.profileType;
+    store.save(client.strip());
+  }
+};
+
+// The «لینک‌ها و پرداخت‌ها» tab: every created link, and one row per payment
+// once a link has been paid. Also carries the permanent general link and the
+// amount range a new link must fall inside.
+app.get('/payment-links', wrap(async (req) => {
+  const count = Math.min(Number(req.query.count) || 20, 100);
+  const j = D.toJson(await withBusiness(() => api.paymentLinks({ count })));
+  return {
+    links: D.paymentLinks(j),
+    generalLink: D.paymentLinkGeneral(j),
+    creationRestriction: D.paymentLinkRestriction(j),
+  };
+}));
+
+app.get('/payment-links/general', wrap(async () => {
+  const j = D.toJson(await withBusiness(() => api.paymentLinks({ count: 1 })));
+  return D.paymentLinkGeneral(j);
+}));
+
+app.post('/payment-links/create', wrap(async (req) => {
+  const { amount, description } = req.body || {};
+  if (amount === undefined || amount === null) throw new Error('amount is required');
+  const j = D.toJson(await withBusiness(() => api.createPaymentLink({ amount, description })));
+  return D.paymentLink(j['2']);
+}));
+
+// Payer-side check. Uses the current profile, not the business one.
+app.post('/payment-links/validate', wrap(async (req) => {
+  const { id, amount } = req.body || {};
+  if (!id) throw new Error('id is required');
+  return D.paymentLinkValidity(D.toJson(await api.validatePaymentLink(id, amount)));
+}));
+
+app.get('/payment-links/:id/receipt', wrap(async (req) => {
+  return D.toJson(await withBusiness(() => api.paymentLinkReceipt(req.params.id)));
+}));
+
 // ---- transfers ----
 
 app.get('/transfers/recent', raw(() => api.recentTransferAccounts()));
