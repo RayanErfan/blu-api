@@ -8,6 +8,10 @@
 //   node cli.js logout                        forget the session
 //   node cli.js call <path> [json]            raw gateway call
 //   node cli.js balance                       balances as JSON
+//   node cli.js profiles                      personal/business/legal profiles
+//   node cli.js accounts                      every account on the party
+//   node cli.js cards [account]               cards, optionally for one account
+//   node cli.js transactions [account]        history, optionally for one account
 //   node cli.js card-otp <card>               dynamic second password for a card
 //   node cli.js transaction-find <code>       find a transaction by its receipt number
 
@@ -89,6 +93,35 @@ async function main() {
     return;
   }
 
+  if (cmd === 'profiles') {
+    await client.ensure();
+    const j = D.toJson(await api.profiles());
+    out({ profiles: D.profiles(j), kinds: D.accountKinds(j) });
+    return;
+  }
+
+  // Every account on the party, personal and business, with balances.
+  if (cmd === 'accounts') {
+    await client.ensure();
+    const p = D.toJson(await api.profile());
+    const party = p['2'] && p['2']['2'];
+    out(D.balances(D.toJson(await api.deposits(party))));
+    return;
+  }
+
+  if (cmd === 'cards') {
+    await client.ensure();
+    out(D.cards(D.toJson(await api.allCards(rest[0]))));
+    return;
+  }
+
+  if (cmd === 'transactions') {
+    await client.ensure();
+    const j = D.toJson(await api.transactions(rest[0]));
+    out(Object.values(j['3'] || {}).map(D.transactionDetail));
+    return;
+  }
+
   if (cmd === 'balance') {
     await client.ensure();
     out(D.balances(D.toJson(await api.deposits())));
@@ -124,7 +157,7 @@ async function main() {
     return;
   }
 
-  console.log('usage: node cli.js <login|otp|status|logout|balance|card-otp|transaction-find|call>');
+  console.log('usage: node cli.js <login|otp|status|logout|balance|profiles|accounts|cards|transactions|card-otp|transaction-find|call>');
 }
 
 main().catch((e) => {

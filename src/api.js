@@ -31,20 +31,37 @@ class Api {
     return this._post('user/profile/get', 'UserGetProfileRequest', 'UserGetProfileResponse');
   }
 
-  profiles() {
-    return this._post('account-profile/profile/list', 'AccountProfileListRequest', 'AccountProfileListResponse');
+  profiles(types) {
+    // AccountProfileType: 1 personal, 2 personal-business, 3 legal.
+    // Without a filter the gateway returns every profile on the party.
+    const extra = types && types.length ? [P.msg(3, types.map((t) => P.num(3, Number(t))))] : [];
+    return this._post('account-profile/profile/list', 'AccountProfileListRequest', 'AccountProfileListResponse', extra);
   }
 
-  deposits() {
-    return this._post('account/deposit/list/all', 'AccountListAllRequest', 'AccountListAllResponse');
+  // Switching is navigation only: the reply is a deep link that carries the
+  // profile id. The data calls below are scoped by an account number instead.
+  switchProfile(profileId) {
+    return this._post('account-profile/profile/switch', 'AccountProfileSwitchRequest', 'AccountProfileSwitchResponse', [
+      P.bytes(2, deviceIdBinary(this.c.s.deviceId)),
+      P.str(3, profileId),
+    ]);
+  }
+
+  // Deposits. Passing the party id returns every account on the party,
+  // including a business profile that a plain list hides.
+  deposits(ownerCustomerId) {
+    const extra = ownerCustomerId ? [P.msg(3, [P.str(5, ownerCustomerId)])] : [];
+    return this._post('account/deposit/list/all', 'AccountListAllRequest', 'AccountListAllResponse', extra);
   }
 
   cards() {
     return this._post('deposit-fund/recent-card/list', 'DepositFundListRecentCardsRequest', 'DepositFundListRecentCardsResponse');
   }
 
-  allCards() {
-    return this._post('account/card/list/all', 'CardListAllRequest', 'CardListAllResponse');
+  // Cards for one account, or for the active profile when `account` is omitted.
+  allCards(account) {
+    const extra = account ? [P.msg(3, [P.msg(3, [P.str(1, account)])])] : [];
+    return this._post('account/card/list/all', 'CardListAllRequest', 'CardListAllResponse', extra);
   }
 
   processedCards() {
@@ -66,8 +83,13 @@ class Api {
 
   // ---- transactions ----
 
-  transactions() {
-    return this._post('account/transaction/list/all', 'AccountTransactionListAllRequest', 'AccountTransactionListAllResponse');
+  // `account` limits the history to one deposit (business accounts included).
+  transactions(account, { size = 20, page = 1 } = {}) {
+    const query = account ? [P.msg(2, [P.msg(1, [P.str(1, account)])])] : [];
+    return this._post('account/transaction/list/all', 'AccountTransactionListAllRequest', 'AccountTransactionListAllResponse', [
+      P.msg(2, [P.num(1, size), P.num(2, page)]),
+      ...(query.length ? [P.msg(3, query)] : []),
+    ]);
   }
 
   // One transaction in full, by the row id from the list. The reply carries the

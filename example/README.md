@@ -63,7 +63,8 @@ Set `BLU_BASE` if the server is not on `http://127.0.0.1:8088`, and
 `methods/` is one script per read endpoint, named after the route:
 
 ```
-status  profile  profiles  balance  balances  cards  cards_all  cards_processed
+status  profile  profiles  profiles_summary  accounts  balance  balances
+cards  cards_all  cards_processed  business
 owner  card_otp  transaction_find  transactions  transactions_categories
 transactions_hashtags  transfers_recent  transfers_scheduled
 charge_recent_phones  internet_recent_phones  bill_favorites  banks  banners

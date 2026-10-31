@@ -20,7 +20,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from .errors import ApiError, GatewayError, ServerUnreachable, TransferError
 
@@ -150,9 +150,36 @@ class Client:
         """Identity record: username, party id, phone, avatar, birth date."""
         return self._get("profile")
 
-    def profiles(self) -> Dict[str, Any]:
-        """The personal and legal profiles the account can act as."""
-        return self._get("profiles")
+    def profiles(self, types: Optional[Sequence[int]] = None) -> Dict[str, Any]:
+        """The profiles the account can act as.
+
+        Blu keeps a separate profile per account kind on the same party:
+        ``1`` personal (حساب شخصی), ``2`` personal-business (حساب تجاری /
+        حساب کسب‌وکار) and ``3`` legal (حساب حقوقی). Each profile owns its own
+        account number, IBAN and card.
+
+        :param types: optional filter, e.g. ``[2]`` for the business profile.
+            The gateway returns every profile regardless, so the filter is
+            applied to the response here.
+        """
+        result = self._get("profiles")
+        if types:
+            wanted = {int(t) for t in types}
+            rows = result.get("3")
+            if isinstance(rows, list):
+                result["3"] = [
+                    p for p in rows
+                    if int((p.get("5") or {}).get("1") or 0) in wanted
+                ]
+        return result
+
+    def profile_summary(self) -> Dict[str, Any]:
+        """Parsed profiles plus the account kinds the user may still open."""
+        return self._get("profiles/summary")
+
+    def accounts(self) -> Dict[str, Any]:
+        """Every deposit on the party, personal and business, with balances."""
+        return self._get("accounts")
 
     def balance(self) -> Dict[str, Any]:
         """Available balance summed over every deposit, in IRR."""
@@ -166,9 +193,14 @@ class Client:
         """Cards previously used as transfer destinations."""
         return self._get("cards")
 
-    def all_cards(self) -> Dict[str, Any]:
-        """The account's own cards."""
-        return self._get("cards/all")
+    def all_cards(self, account: Optional[str] = None) -> Dict[str, Any]:
+        """The account's own cards.
+
+        :param account: optional account number. Pass a business account number
+            to list the cards that belong to that profile.
+        """
+        query = "account=" + urllib.parse.quote(str(account), safe="") if account else ""
+        return self._get("cards/all" + ("?" + query if query else ""))
 
     def processed_cards(self) -> Dict[str, Any]:
         """Card orders that have been processed."""
@@ -206,9 +238,20 @@ class Client:
 
     # ---- transactions ----
 
-    def transactions(self) -> Dict[str, Any]:
-        """Full history, newest first."""
-        return self._get("transactions")
+    def transactions(
+        self, account: Optional[str] = None, page: int = 1, size: int = 20
+    ) -> Dict[str, Any]:
+        """History, newest first.
+
+        :param account: optional account number. Business and personal profiles
+            keep separate histories, so pass the account you want.
+        :param page: 1-based page number.
+        :param size: rows per page (the server caps it at 100).
+        """
+        params = {"page": str(int(page)), "size": str(int(size))}
+        if account:
+            params["account"] = str(account)
+        return self._get("transactions?" + urllib.parse.urlencode(params))
 
     def merchant_categories(self) -> Dict[str, Any]:
         """Merchant category tree used to classify spending."""

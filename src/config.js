@@ -11,6 +11,8 @@ module.exports = {
   PROFILE: 'main',
   PROFILE_ID: '611828001111111101',
   PROFILE_TYPE: 41,
+  // AccountProfileType: 1 personal, 2 personal-business, 3 legal
+  ACCOUNT_PROFILE_TYPE: 1,
   BUNDLE: 'blu.saman.solutions',
   ENV_KEY: 'f6s95EHQRkUu77f7sS38Nk',
   FLAGS: 'https://openapi.sdb247.com/openapi/v0/flags/',

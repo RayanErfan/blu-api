@@ -97,7 +97,31 @@ app.post('/logout', wrap(async () => {
 // ---- account ----
 
 app.get('/profile', raw(() => api.profile()));
-app.get('/profiles', raw(() => api.profiles()));
+// The gateway ignores the type filter and returns every profile, so the
+// filter is applied here.
+app.get('/profiles', wrap(async (req) => {
+  const types = String(req.query.types || '').split(',').map((x) => Number(x)).filter(Boolean);
+  const j = D.toJson(await api.profiles());
+  if (!types.length) return j;
+  const list = j['3'];
+  if (Array.isArray(list)) {
+    j['3'] = list.filter((p) => types.includes(Number(p['5'] && p['5']['1'])));
+  }
+  return j;
+}));
+// Parsed view: one entry per profile plus the account kinds the user may open.
+app.get('/profiles/summary', wrap(async () => {
+  const j = D.toJson(await api.profiles());
+  return { profiles: D.profiles(j), kinds: D.accountKinds(j) };
+}));
+
+// Every account on the party, personal and business.
+app.get('/accounts', wrap(async () => {
+  const p = D.toJson(await api.profile());
+  const party = p['2'] && p['2']['2'];
+  const b = D.balances(D.toJson(await api.deposits(party)));
+  return { accounts: b };
+}));
 
 app.get('/balances', raw(async () => {
   const b = D.balances(D.toJson(await api.deposits()));
@@ -115,7 +139,8 @@ app.get('/balance', wrap(async () => {
 }));
 
 app.get('/cards', raw(() => api.cards()));
-app.get('/cards/all', raw(() => api.allCards()));
+// `?account=` scopes the list to one deposit (business profile included).
+app.get('/cards/all', raw((req) => api.allCards(req.query.account)));
 app.get('/cards/processed', raw(() => api.processedCards()));
 
 // Dynamic second password (رمز دوم پویا) for one card, valid for about two
@@ -129,7 +154,11 @@ app.get('/owner/:identifier', raw((req) => api.owner(req.params.identifier)));
 
 // ---- transactions ----
 
-app.get('/transactions', raw(() => api.transactions()));
+// `?account=` scopes history to one deposit; `page`/`size` page through it.
+app.get('/transactions', raw((req) => api.transactions(req.query.account, {
+  size: Math.min(Number(req.query.size) || 20, 100),
+  page: Math.max(Number(req.query.page) || 1, 1),
+})));
 app.get('/transactions/categories', raw(() => api.merchantCategories()));
 app.get('/transactions/hashtags', raw(() => api.transactionHashtags()));
 

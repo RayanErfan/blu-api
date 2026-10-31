@@ -82,16 +82,18 @@ function clientInfo() {
 }
 
 // The leading "app" block shared by key-exchange and login.
-function profileBlock(profileId) {
+// profileType is AccountProfileType: 1 personal, 2 personal-business, 3 legal.
+// accountType is the deposit product (41 = short-term).
+function profileBlock(profileId, profileType) {
   return P.msg(10, [
     P.str(1, C.PROFILE),
-    P.num(2, 1),
+    P.num(2, profileType || C.ACCOUNT_PROFILE_TYPE),
     P.msg(3, [P.str(1, profileId || C.PROFILE_ID)]),
     P.num(4, C.PROFILE_TYPE),
   ]);
 }
 
-function appBlock(deviceId, withProfile, profileId) {
+function appBlock(deviceId, withProfile, profileId, profileType) {
   return P.msg(1, [
     P.bytes(1, crypto.randomBytes(16)),
     P.msg(8, [
@@ -100,7 +102,7 @@ function appBlock(deviceId, withProfile, profileId) {
       P.msg(999, versionBlock()),
     ]),
     P.msg(9, [P.str(1, C.LOCALE)]),
-    ...(withProfile ? [profileBlock(profileId)] : []),
+    ...(withProfile ? [profileBlock(profileId, profileType)] : []),
     clientInfo(),
   ]);
 }

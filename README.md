@@ -104,15 +104,17 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 | POST | `/otp` | `{code}` to finish a fresh-device login |
 | POST | `/logout` | drop the stored session |
 | GET | `/profile` | identity, phone, party id |
-| GET | `/profiles` | account profiles |
+| GET | `/profiles` | all profiles; `?types=1,2,3` filters locally |
+| GET | `/profiles/summary` | parsed profiles plus openable account kinds |
+| GET | `/accounts` | every account on the party, business included |
 | GET | `/balance` | summed available balance |
 | GET | `/balances` | every deposit with available/current |
 | GET | `/cards` | recent transfer cards |
-| GET | `/cards/all` | own cards |
+| GET | `/cards/all` | own cards; `?account=` for one profile |
 | GET | `/cards/processed` | processed card orders |
 | GET | `/cards/:card/otp` | dynamic second password (رمز دوم پویا) for a card |
 | GET | `/owner/:identifier` | owner lookup for a card or IBAN |
-| GET | `/transactions` | full transaction history |
+| GET | `/transactions` | history; `?account=&page=&size=` |
 | GET | `/transactions/detail/:id` | one transaction by row id |
 | GET | `/transactions/find/:code` | one transaction by receipt number (کد پیگیری) |
 | GET | `/transactions/categories` | merchant categories |
@@ -153,6 +155,40 @@ curl -s localhost:8088/transactions/find/249042
 `?pages=` bounds the walk (default 50, max 500). The receipt also appears in the
 row's `description` as `شماره پیگیری`, next to the `شماره مرجع` reference number.
 
+### Business profile (حساب تجاری)
+
+A Blu party can hold several profiles at once. Each has its own account
+number, IBAN and card, and the same login acts for all of them:
+
+| type | label | notes |
+| --- | --- | --- |
+| `1` | حساب شخصی | the ordinary personal profile, id `main` |
+| `2` | حساب تجاری / حساب کسب‌وکار | business profile, advertised with a higher transfer ceiling |
+| `3` | حساب حقوقی | legal entity |
+
+`GET /profiles/summary` lists them and says which kinds the user may still
+open:
+
+```
+curl -s localhost:8088/profiles/summary
+{"profiles":[
+  {"id":"main","type":"1","kind":"حساب شخصی","accountNumber":"611828001111111101","card":"6219865551234568"},
+  {"id":"...","type":"2","kind":"حساب کسب‌وکار","accountNumber":"611828002222222202","card":"6219865559876543"}],
+ "kinds":[{"type":"2","label":"حساب کسب‌وکار","available":false,"reason":"سقف ساخت حساب کسب‌وکار پر شده"}]}
+```
+
+Switching profile in the app is navigation only — `profile/switch` returns a
+`blubank://…&profile-id=…` deep link, not a new token. The data routes are
+scoped by the **account number** in the query, so no re-login is needed:
+
+```
+curl -s "localhost:8088/cards/all?account=611828002222222202"
+curl -s "localhost:8088/transactions?account=611828002222222202&size=20"
+```
+
+A plain `/transactions` shows the active profile only. Asking `/accounts` (by
+party id) is what surfaces the business balance.
+
 ### Dynamic second password
 
 Card payments ask for a رمز دوم پویا (dynamic second password) instead of the
@@ -176,6 +212,10 @@ node cli.js login [user] [pass]
 node cli.js otp <code>
 node cli.js status
 node cli.js balance
+node cli.js profiles
+node cli.js accounts
+node cli.js cards [account]
+node cli.js transactions [account]
 node cli.js card-otp <card>
 node cli.js transaction-find <receipt>
 node cli.js logout

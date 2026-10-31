@@ -115,4 +115,52 @@ function transactionDetail(row) {
   };
 }
 
-module.exports = { text, amount, balances, primarySource, cardOtp, transactionDetail, toJson: P.toJson };
+// Account profiles on the party. f3[] carries one entry per profile:
+// f1 = profile id ("main" for the personal one, a UUID for the rest),
+// f2 = account block, f5 = type, f6 = completion, f3 = profile name.
+function profiles(node) {
+  const list = node && node['3'];
+  if (!list) return [];
+  const rows = Array.isArray(list) ? list : [list];
+  return rows.map((p) => ({
+    id: text(p['1']),
+    name: text(p['3']),
+    accountNumber: text(p['2'] && p['2']['1'] && p['2']['1']['1']),
+    iban: text(p['2'] && p['2']['5'] && p['2']['5']['1'] && p['2']['5']['1']['1']),
+    card: text(p['2'] && p['2']['5'] && p['2']['5']['2'] && p['2']['5']['2']['1']),
+    type: text(p['5'] && p['5']['1']),
+    kind: text(p['5'] && p['5']['15']),
+    completion: text(p['6'] && p['6']['15']),
+  }));
+}
+
+// Account kinds the user may open (f4[]): type, label, whether the bank will
+// accept a request right now, and the reason when it will not.
+function accountKinds(node) {
+  const list = node && node['4'];
+  if (!list) return [];
+  const rows = Array.isArray(list) ? list : [list];
+  return rows.map((o) => ({
+    type: text(o['1'] && o['1']['1']),
+    label: text(o['1'] && o['1']['15']),
+    available: text(o['2']) === '1',
+    reason: text(o['3'] && o['3']['3']),
+    description: text(o['15']),
+  }));
+}
+
+// Cards list. f3[] carries one entry per card: f2.1 = PAN, f4 = account block,
+// f4.4 = status, f4.6 = balance.
+function cards(node) {
+  const list = node && node['3'];
+  if (!list) return [];
+  const rows = Array.isArray(list) ? list : [list];
+  return rows.map((c) => ({
+    pan: text(c['2'] && c['2']['1']),
+    accountNumber: text(c['4'] && c['4']['1'] && c['4']['1']['1']),
+    status: text(c['4'] && c['4']['4'] && c['4']['4']['1']),
+    available: amount(c['4'] && c['4']['6'] && c['4']['6']['1']),
+  }));
+}
+
+module.exports = { text, amount, balances, primarySource, cardOtp, transactionDetail, profiles, accountKinds, cards, toJson: P.toJson };
