@@ -68,12 +68,15 @@ function decode(buf) {
       let l;
       [l, i] = readVarint(buf, i);
       const n = Number(l);
+      if (i + n > buf.length) throw new Error('truncated length-delimited field');
       out.push({ field, wire, value: buf.subarray(i, i + n) });
       i += n;
     } else if (wire === 5) {
+      if (i + 4 > buf.length) throw new Error('truncated fixed32 field');
       out.push({ field, wire, value: buf.subarray(i, i + 4) });
       i += 4;
     } else if (wire === 1) {
+      if (i + 8 > buf.length) throw new Error('truncated fixed64 field');
       out.push({ field, wire, value: buf.subarray(i, i + 8) });
       i += 8;
     } else {
