@@ -99,16 +99,16 @@ module.exports = { varint, tag, bytes, str, num, msg, decode, first, all, toJson
 
 // Best-effort JSON view of a protobuf blob: nested messages are expanded,
 // printable/UTF-8 leaves become strings, everything else becomes base64.
+//
+// A truncated tail costs only the tail: the fields that decoded cleanly are
+// still rendered and the unreadable remainder is attached as `_b64`, instead of
+// collapsing the whole message into one opaque blob.
 function toJson(buf, depth = 0) {
   if (!buf || !buf.length) return null;
   if (isText(buf)) return buf.toString('utf8');
   if (depth > 8) return { b64: buf.toString('base64') };
-  let fields;
-  try {
-    fields = decode(buf);
-  } catch {
-    return { b64: buf.toString('base64') };
-  }
+  const { fields, rest } = decodePartial(buf);
+  if (!fields.length && rest) return { b64: buf.toString('base64') };
   const out = {};
   for (const f of fields) {
     let v;
@@ -120,7 +120,45 @@ function toJson(buf, depth = 0) {
       out[f.field].push(v);
     }
   }
+  if (rest && rest.length) out._b64 = rest.toString('base64');
   return out;
+}
+
+// decode() but tolerant: stops at the first field it cannot read in full and
+// hands the unread bytes back instead of throwing.
+function decodePartial(buf) {
+  const out = [];
+  let i = 0;
+  while (i < buf.length) {
+    const start = i;
+    let k;
+    try { [k, i] = readVarint(buf, i); } catch { return { fields: out, rest: buf.subarray(start) }; }
+    const field = Number(k >> 3n);
+    const wire = Number(k & 7n);
+    if (wire === 0) {
+      let v;
+      try { [v, i] = readVarint(buf, i); } catch { return { fields: out, rest: buf.subarray(start) }; }
+      out.push({ field, wire, value: v });
+    } else if (wire === 2) {
+      let l;
+      try { [l, i] = readVarint(buf, i); } catch { return { fields: out, rest: buf.subarray(start) }; }
+      const n = Number(l);
+      if (i + n > buf.length) return { fields: out, rest: buf.subarray(start) };
+      out.push({ field, wire, value: buf.subarray(i, i + n) });
+      i += n;
+    } else if (wire === 5) {
+      if (i + 4 > buf.length) return { fields: out, rest: buf.subarray(start) };
+      out.push({ field, wire, value: buf.subarray(i, i + 4) });
+      i += 4;
+    } else if (wire === 1) {
+      if (i + 8 > buf.length) return { fields: out, rest: buf.subarray(start) };
+      out.push({ field, wire, value: buf.subarray(i, i + 8) });
+      i += 8;
+    } else {
+      return { fields: out, rest: buf.subarray(start) };
+    }
+  }
+  return { fields: out, rest: null };
 }
 
 // A leaf is text when it decodes as valid UTF-8 without control bytes.

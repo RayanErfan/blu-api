@@ -81,10 +81,11 @@ def main():
     save("card_otp", payload)
 
     # One transaction by its receipt number, taken from the newest transaction.
+    # A single row is a dict, not a list, so wrap it instead of taking values().
     _, recent = call("transactions")
     rows = recent.get("3") or []
     if isinstance(rows, dict):
-        rows = list(rows.values())
+        rows = [rows]
     if rows:
         _, detail = call("transactions/detail/" + urllib.parse.quote(rows[0]["1"], safe=""))
         receipt = detail.get("receipt")

@@ -253,14 +253,21 @@ app.post('/transfers/:id/cancel', raw((req) => api.transferCancel(req.params.id)
 // support card-to-card (24), but a Blu-to-Blu destination (e.g. a Blu Junior
 // card) only takes method 1 («بلو به بلو») and rejects every interbank rail.
 // The requested `method` is used only when the gateway lists it as enabled;
-// otherwise the first enabled method is picked, and if none is enabled the
-// call fails with the gateway's reason instead of submitting a doomed create.
+// otherwise the first enabled method in PREFERENCE order is picked, and if none
+// is enabled the call fails with the gateway's reason instead of submitting a
+// doomed create.
 //
 // `result` carries the receipt. The gateway reports the outcome in
-// `result.3.6` («1» = انتقال موفق, «4» = انتقال ناموفق); anything but «1»
-// is a failed transfer and is returned as an error, never as ok:true.
+// `result.3.6` (f1 «1» = انتقال موفق, «4» = انتقال ناموفق, f2 = the Persian
+// message); anything but «1» is a failed transfer and is returned as an error,
+// never as ok:true. A reply with no receipt tree at all is not a failure: the
+// outcome is looked up by transfer id and, if that is inconclusive too, the
+// call returns ok:null instead of guessing.
+const METHOD_PREFERENCE = [1, 24, 25, 21, 22];
+
 app.post('/transfers', wrap(async (req, res) => {
-  const { amount, to, bank, method, source } = req.body || {};
+  const { to, bank, method, source } = req.body || {};
+  const amount = Number(req.body && req.body.amount);
   if (!Number.isSafeInteger(amount) || amount <= 0) return { error: 'amount must be a positive integer (IRR)' };
   if (typeof to !== 'string' || !to.trim()) return { error: 'to required' };
 
@@ -276,7 +283,7 @@ app.post('/transfers', wrap(async (req, res) => {
   const enabled = list.filter((m) => (m['6'] || '') === '1');
 
   let chosen;
-  if (method !== undefined) {
+  if (method != null) {
     const wanted = String(method);
     const match = list.find((m) => String((m['1'] || {})['1']) === wanted);
     if (match && (match['6'] || '') === '1') {
@@ -286,7 +293,9 @@ app.post('/transfers', wrap(async (req, res) => {
       return { ok: false, error: 'requested transfer method is not available for this destination', method: Number(wanted), methods: list, reason: reasons[0] || null };
     }
   } else {
-    chosen = enabled.length ? Number((enabled[0]['1'] || {})['1']) : null;
+    const byCode = new Map(enabled.map((m) => [Number((m['1'] || {})['1']), m]));
+    const preferred = METHOD_PREFERENCE.find((c) => byCode.has(c));
+    chosen = preferred !== undefined ? preferred : null;
     if (!chosen) {
       const reasons = [...new Set(list.map((m) => m['15']).filter(Boolean))];
       return { ok: false, error: 'no transfer method available for this destination', methods: list, reason: reasons[0] || null };
@@ -300,7 +309,7 @@ app.post('/transfers', wrap(async (req, res) => {
     if (e instanceof BluError) {
       let msg = null;
       try { const b = JSON.parse(e.body.toString('utf8')); msg = b.message || null; } catch { /* keep null */ }
-      return res.status(502).json({
+      res.status(502).json({
         ok: false,
         error: 'gateway rejected the transfer',
         method: chosen,
@@ -310,22 +319,57 @@ app.post('/transfers', wrap(async (req, res) => {
         message: msg,
         availableMethods: list,
       });
+      return;
     }
     throw e;
   }
   const r = created && created['3'] && created['3']['6'];
-  const status = r && r['1'];
+  let status = r && r['1'];
+  // result.2 is the id as a bare string on success and a {1:id, 6:{…}} message
+  // on failure, so accept both shapes.
+  const rawId = created && created['2'];
+  const idText = (typeof rawId === 'string' ? rawId : (rawId && rawId['1'])) || '';
+  const lookupId = idText.replace(/^\n/, '');
+  const id = idText.replace(/^\n\$?/, '') || null;
+  let gatewayMsg = (typeof rawId === 'object' && rawId && rawId['6'] && rawId['6']['15']) || null;
+
+  // No receipt tree at all: the gateway may have accepted the transfer and just
+  // not reported it. Ask again by id before calling it a failure.
+  if (status === undefined && lookupId) {
+    try {
+      const got = D.toJson(await api.transferGet(lookupId));
+      const gr = got && got['3'] && got['3']['6'];
+      if (gr && gr['1'] !== undefined) {
+        status = gr['1'];
+        gatewayMsg = gr['2'] || gatewayMsg;
+      }
+    } catch {
+      // keep status undefined
+    }
+  }
+
+  if (status === undefined) {
+    return {
+      ok: null,
+      error: 'transfer outcome unknown',
+      method: chosen,
+      transferId: id,
+      source: src.card,
+      destination: to,
+      availableMethods: list,
+      result: created,
+    };
+  }
+
   if (status !== '1') {
-    const gatewayMsg = created['2'] && created['2']['6'] && created['2']['6']['15'];
-    const id = created['2'] && created['2']['1'];
     return {
       ok: false,
       error: 'transfer failed',
       method: chosen,
       status: r && r['2'],
       reason: r && r['3'],
-      gatewayMessage: gatewayMsg || null,
-      transferId: id || null,
+      gatewayMessage: gatewayMsg,
+      transferId: id,
       source: src.card,
       destination: to,
       availableMethods: list,

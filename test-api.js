@@ -39,6 +39,34 @@ const METHODS = [
     console.log('cardOtp'.padEnd(24), 'FAIL', e.status || '', e.message);
   }
 
+  // The transfer method table: the codes the client documents must be the ones
+  // the gateway sends, and every row must carry an enabled flag. Both the
+  // object and the bare-number call shape are checked.
+  try {
+    const recent = D.toJson(await a.recentTransferAccounts());
+    const row = (recent['3'] || [])[0];
+    const pan = row && row['1'] && row['1']['2'] && row['1']['2']['1'];
+    if (!pan) throw new Error('no recent destination to probe');
+    const bank = row['1']['2']['2'] && row['1']['2']['2']['1'];
+    const dest = { card: pan, bank, formatted: row['1']['2']['3'] };
+
+    for (const arg of [{ value: 1000 }, 1000]) {
+      const table = D.toJson(await a.transferMethods(arg, dest));
+      const rows = table['2'] || [];
+      const codes = rows.map((m) => (m['1'] || {})['1']);
+      for (const want of [1, 21, 22, 24, 25]) {
+        if (!codes.includes(String(want))) throw new Error(`method ${want} missing from the table`);
+      }
+      if (rows.some((m) => typeof m['6'] !== 'string')) throw new Error('a row has no enabled flag');
+      const enabled = rows.filter((m) => m['6'] === '1').map((m) => (m['1'] || {})['1']);
+      if (!enabled.length) throw new Error('no enabled method for this destination');
+      console.log('transferMethods'.padEnd(24), 'OK', `${typeof arg === 'number' ? 'number' : 'object'} arg, enabled ${enabled.join(',')}`);
+    }
+  } catch (e) {
+    bad++;
+    console.log('transferMethods'.padEnd(24), 'FAIL', e.status || '', e.message);
+  }
+
   console.log(bad ? `${bad} failed` : 'all ok');
   process.exit(bad ? 1 : 0);
 })().catch((e) => {

@@ -344,7 +344,8 @@ class Api {
 }
 
 // {f1:{f1:value}, f2:{f1:isoCode}}
-function money({ value, currency = 'IRR' }) {
+function money(amount) {
+  const { value, currency = 'IRR' } = typeof amount === 'number' ? { value: amount } : amount;
   return P.msg(2, [P.msg(1, [P.str(1, String(value))]), P.msg(2, [P.str(1, currency)])]);
 }
 

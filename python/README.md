@@ -44,8 +44,11 @@ blu.transfer(1000, "6104335551234567")             # card to card
 blu.transfer(1000, "IR000560611828001111111101", method=bluapi.PAYA)
 ```
 
-Amounts are IRR. Source and destination must differ, so the account's own Blu
-card cannot be the destination. This moves real money.
+Amounts are IRR, as a number or a numeric string. Source and destination must
+differ, so the account's own Blu card cannot be the destination. The server
+picks the first method the gateway enables for the destination (Blu-to-Blu
+first, then card-to-card, Pol, Paya, Satna) unless you pass `method`. This moves
+real money.
 
 ### Card payments
 

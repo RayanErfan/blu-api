@@ -20,7 +20,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence, Union
 
 from .errors import ApiError, GatewayError, ServerUnreachable, TransferError
 
@@ -324,7 +324,7 @@ class Client:
 
     def transfer(
         self,
-        amount: int,
+        amount: Union[int, str],
         to: str,
         bank: Optional[str] = None,
         method: Optional[int] = None,
@@ -332,14 +332,14 @@ class Client:
     ) -> Dict[str, Any]:
         """Send money.
 
-        :param amount: in IRR.
+        :param amount: in IRR, as a number or a numeric string.
         :param to: destination card number or IBAN.
         :param bank: destination bank code; inferred from the owner lookup when
             omitted.
         :param method: one of :data:`CARD_TO_CARD`, :data:`INSTANT`,
             :data:`PAYA`, :data:`SATNA`. Omit to let the server pick the first
-            method the gateway enables for the destination (e.g.
-            ``بلو به بلو`` for Blu-Junior cards).
+            method the gateway enables for the destination, in preference order
+            ``1 → 24 → 25 → 21 → 22`` (e.g. ``بلو به بلو`` for Blu-Junior cards).
         :param source: ``{"card": ..., "bank": ...}`` to override the source
             card.
 
@@ -347,6 +347,9 @@ class Client:
         gateway which methods are available before submitting. Source and
         destination must differ, so the account's own Blu card cannot be the
         destination.
+
+        ``ok`` is ``True`` only for a successful receipt, ``False`` for a failed
+        one, and ``None`` when the gateway's reply could not be classified.
 
         This moves real money.
         """

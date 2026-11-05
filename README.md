@@ -5,8 +5,8 @@ gateway protocol directly — no browser, no app, no scraping.
 
 ```
 npm install
-BLU_PROXY=socks5h://127.0.0.1:10808 npm run login    # once
-BLU_PROXY=socks5h://127.0.0.1:10808 npm start
+BLU_PROXY=socks5h://127.0.0.1:1080 npm run login    # once
+BLU_PROXY=socks5h://127.0.0.1:1080 npm start
 ```
 
 `data/` is created on first login and holds the session. See `.env.example` for
@@ -36,11 +36,10 @@ with bluapi.Client() as blu:
 
 ## Why a proxy
 
-`openapi.sdb247.com` is split-horizon DNS: outside Iran it resolves to a dead
-German address. All traffic must leave from an Iranian IP. Point `BLU_PROXY` at
-any SOCKS5 or HTTP proxy that exits there — `socks5h` is preferred so DNS is
-resolved remotely. The examples use `127.0.0.1:10808`; adjust the port to the
-one your local proxy listens on.
+`openapi.sdb247.com` is split-horizon DNS: outside Iran it can resolve to a dead
+German address. Point `BLU_PROXY` at any SOCKS5 or HTTP proxy that exits in Iran
+— `socks5h` is preferred so DNS is resolved remotely. The examples use
+`127.0.0.1:1080`; adjust the port to the one your local proxy listens on.
 
 The gateway also only speaks **HTTP/2**. An HTTP/1.1 ClientHello is dropped at
 the handshake, so the transport is `http2.connect` with explicit
@@ -146,26 +145,28 @@ Set `BLU_API_KEY` to require an `x-api-key` header on everything but `/health`.
 
 Transfer methods: `1` Blu-to-Blu (بلو به بلو, free), `24` card-to-card, `25`
 instant (Pol), `21` Paya, `22` Satna. The gateway reports which methods a
-destination accepts, and `/transfers` picks the first enabled one — a
-requested `method` is only honored when the gateway lists it as enabled. If no
-method is enabled the call fails with the gateway's reason instead of
-submitting.
+destination accepts, and `/transfers` picks the first enabled one in preference
+order `1 → 24 → 25 → 21 → 22` — a requested `method` is only honored when the
+gateway lists it as enabled. If no method is enabled the call fails with the
+gateway's reason instead of submitting.
 
 The response reports the outcome honestly: `ok:true` only when the receipt says
 انتقال موفق. A gateway rejection answers `502` with the bank's own message, a
-failed receipt answers `ok:false` with the parsed status and reason, and every
-response includes the chosen method and the full list of methods the destination
-accepts. The source card defaults to the account's own card; pass `source` to
-override it.
+failed receipt answers `ok:false` with the parsed status and reason, and a reply
+with no receipt at all is looked up by transfer id and otherwise answers
+`ok:null` rather than guessing. Every response includes the chosen method and
+the full list of methods the destination accepts. The source card defaults to
+the account's own card; pass `source` to override it. `amount` may be a number
+or a numeric string.
 
 ### انتقال وجه — شرح فارسی
 
 «انتقال وجه» چند روش دارد: «بلو به بلو» (برای کارت‌های خود بانک، از جمله
 کارت جونیور، رایگان است) و «کارت به کارت» (با کارمزد). گیتوی بانک خودش
 می‌گوید برای مقصد موردنظر کدام روش فعال است؛ `/transfers` اولین روش فعال را
-انتخاب می‌کند، و اگر `method` را صریح بدهید فقط وقتی از آن استفاده می‌کند که
-گیتوی آن را فعال اعلام کرده باشد. اگر هیچ روشی فعال نباشد، درخواست با دلیل
-همان گیتوی رد می‌شود.
+به ترتیب اولویت `۱ → ۲۴ → ۲۵ → ۲۱ → ۲۲` انتخاب می‌کند، و اگر `method` را
+صریح بدهید فقط وقتی از آن استفاده می‌کند که گیتوی آن را فعال اعلام کرده باشد.
+اگر هیچ روشی فعال نباشد، درخواست با دلیل همان گیتوی رد می‌شود.
 
 نتیجه انتقال همیشه صادقانه گزارش می‌شود:
 
@@ -173,10 +174,12 @@ override it.
 - اگر گیتوی درخواست را رد کند، پاسخ `502` با پیام فارسی خود بانک برمی‌گردد.
 - اگر رسید شکست بخورد، `ok:false` همراه با وضعیت و دلیل تحلیل‌شده برگردانده
   می‌شود.
+- اگر پاسخ هیچ رسیدی نداشته باشد، با شناسهٔ انتقال دوباره پرسیده می‌شود و در
+  غیر آن صورت `ok:null` برمی‌گردد تا نتیجه حدس زده نشود.
 
 در همه پاسخ‌ها روش انتخابی و فهرست کامل روش‌های قابل‌استفاده برای آن مقصد وجود
-دارد. مبلغ باید عدد صحیح مثبت به ریال باشد؛ کارت مبدأ به‌صورت پیش‌فرض کارت
-حساب کاربر است و با `source` قابل تغییر است.
+دارد. مبلغ باید عدد صحیح مثبت به ریال باشد (عدد یا رشتهٔ عددی)؛ کارت مبدأ
+به‌صورت پیش‌فرض کارت حساب کاربر است و با `source` قابل تغییر است.
 
 ### Finding a transaction
 
