@@ -32,8 +32,8 @@ DEFAULT_TIMEOUT = 120.0
 # Transfer methods accepted by the gateway.
 CARD_TO_CARD = 24
 INSTANT = 25
-PAYA = 26
-SATNA = 27
+PAYA = 21
+SATNA = 22
 
 
 class Client:
@@ -327,7 +327,7 @@ class Client:
         amount: int,
         to: str,
         bank: Optional[str] = None,
-        method: int = CARD_TO_CARD,
+        method: Optional[int] = None,
         source: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """Send money.
@@ -337,7 +337,9 @@ class Client:
         :param bank: destination bank code; inferred from the owner lookup when
             omitted.
         :param method: one of :data:`CARD_TO_CARD`, :data:`INSTANT`,
-            :data:`PAYA`, :data:`SATNA`.
+            :data:`PAYA`, :data:`SATNA`. Omit to let the server pick the first
+            method the gateway enables for the destination (e.g.
+            ``بلو به بلو`` for Blu-Junior cards).
         :param source: ``{"card": ..., "bank": ...}`` to override the source
             card.
 
@@ -350,7 +352,9 @@ class Client:
         """
         if not amount or not to:
             raise TransferError("amount and to are required")
-        body: Dict[str, Any] = {"amount": amount, "to": to, "method": method}
+        body: Dict[str, Any] = {"amount": amount, "to": to}
+        if method is not None:
+            body["method"] = method
         if bank:
             body["bank"] = bank
         if source:

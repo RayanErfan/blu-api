@@ -77,7 +77,9 @@ def build_parser() -> argparse.ArgumentParser:
     transfer.add_argument("amount", type=int)
     transfer.add_argument("to")
     transfer.add_argument("--bank")
-    transfer.add_argument("--method", type=int, default=24)
+    # Leave `method` unset by default: the server picks the first enabled
+    # method for the destination (e.g. بلو به بلو for Blu-Junior cards).
+    transfer.add_argument("--method", type=int)
 
     call = sub.add_parser("call", help="raw gateway route")
     call.add_argument("path")

@@ -248,9 +248,21 @@ app.post('/transfers/:id/cancel', raw((req) => api.transferCancel(req.params.id)
 
 // { amount, to, bank?, method?, source? }
 // `to` is a card number or IBAN; `bank` is the destination bank code.
-app.post('/transfers', wrap(async (req) => {
-  const { amount, to, bank, method = 24, source } = req.body || {};
-  if (!amount || !to) return { error: 'amount and to required' };
+//
+// The gateway decides which methods the destination accepts: most destinations
+// support card-to-card (24), but a Blu-to-Blu destination (e.g. a Blu Junior
+// card) only takes method 1 («بلو به بلو») and rejects every interbank rail.
+// The requested `method` is used only when the gateway lists it as enabled;
+// otherwise the first enabled method is picked, and if none is enabled the
+// call fails with the gateway's reason instead of submitting a doomed create.
+//
+// `result` carries the receipt. The gateway reports the outcome in
+// `result.3.6` («1» = انتقال موفق, «4» = انتقال ناموفق); anything but «1»
+// is a failed transfer and is returned as an error, never as ok:true.
+app.post('/transfers', wrap(async (req, res) => {
+  const { amount, to, bank, method, source } = req.body || {};
+  if (!Number.isSafeInteger(amount) || amount <= 0) return { error: 'amount must be a positive integer (IRR)' };
+  if (typeof to !== 'string' || !to.trim()) return { error: 'to required' };
 
   const owner = D.toJson(await api.owner(to));
   const destBank = bank || (owner && owner['2'] && owner['2']['1'] && owner['2']['1']['2'] && owner['2']['1']['2']['1']);
@@ -260,8 +272,67 @@ app.post('/transfers', wrap(async (req) => {
   if (!src) return { error: 'no source card found' };
 
   const methods = D.toJson(await api.transferMethods({ value: amount }, dest));
-  const res = await api.transferCreate({ amount: { value: amount }, source: src, dest, method });
-  return { ok: true, method, source: src.card, destination: to, availableMethods: methods, result: D.toJson(res) };
+  const list = Array.isArray(methods['2']) ? methods['2'] : [];
+  const enabled = list.filter((m) => (m['6'] || '') === '1');
+
+  let chosen;
+  if (method !== undefined) {
+    const wanted = String(method);
+    const match = list.find((m) => String((m['1'] || {})['1']) === wanted);
+    if (match && (match['6'] || '') === '1') {
+      chosen = Number(wanted);
+    } else {
+      const reasons = [...new Set(list.map((m) => m['15']).filter(Boolean))];
+      return { ok: false, error: 'requested transfer method is not available for this destination', method: Number(wanted), methods: list, reason: reasons[0] || null };
+    }
+  } else {
+    chosen = enabled.length ? Number((enabled[0]['1'] || {})['1']) : null;
+    if (!chosen) {
+      const reasons = [...new Set(list.map((m) => m['15']).filter(Boolean))];
+      return { ok: false, error: 'no transfer method available for this destination', methods: list, reason: reasons[0] || null };
+    }
+  }
+
+  let created;
+  try {
+    created = D.toJson(await api.transferCreate({ amount: { value: amount }, source: src, dest, method: chosen }));
+  } catch (e) {
+    if (e instanceof BluError) {
+      let msg = null;
+      try { const b = JSON.parse(e.body.toString('utf8')); msg = b.message || null; } catch { /* keep null */ }
+      return res.status(502).json({
+        ok: false,
+        error: 'gateway rejected the transfer',
+        method: chosen,
+        source: src.card,
+        destination: to,
+        gatewayStatus: e.status,
+        message: msg,
+        availableMethods: list,
+      });
+    }
+    throw e;
+  }
+  const r = created && created['3'] && created['3']['6'];
+  const status = r && r['1'];
+  if (status !== '1') {
+    const gatewayMsg = created['2'] && created['2']['6'] && created['2']['6']['15'];
+    const id = created['2'] && created['2']['1'];
+    return {
+      ok: false,
+      error: 'transfer failed',
+      method: chosen,
+      status: r && r['2'],
+      reason: r && r['3'],
+      gatewayMessage: gatewayMsg || null,
+      transferId: id || null,
+      source: src.card,
+      destination: to,
+      availableMethods: list,
+      result: created,
+    };
+  }
+  return { ok: true, method: chosen, source: src.card, destination: to, availableMethods: list, result: created };
 }));
 
 // ---- payments ----

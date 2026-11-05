@@ -355,9 +355,11 @@ function sourceBlock({ card, bank }) {
 
 // Destination: f4{f2{f1:card, f2{f1:bank}}, f14{f1:bank}, f15:formatted}
 function destination({ card, bank, formatted }) {
+  // bank is missing for some destinations; the gateway resolves it on its
+  // own, so the subfields are simply omitted instead of crashing.
   return P.msg(4, [
-    P.msg(2, [P.str(1, card), P.msg(2, [P.str(1, bank)])]),
-    P.msg(14, [P.str(1, bank)]),
+    P.msg(2, [P.str(1, card), ...(bank ? [P.msg(2, [P.str(1, bank)])] : [])]),
+    ...(bank ? [P.msg(14, [P.str(1, bank)])] : []),
     P.str(15, formatted || card),
   ]);
 }
